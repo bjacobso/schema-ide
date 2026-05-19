@@ -4,11 +4,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  createSchemaIdeCli,
   loadSchemaIdeWorkspaceConfig,
   readSourceFilesFromDirectory,
+  runSchemaIdeCli,
   validateWorkspaceDirectory,
 } from "../src";
-import { runSchemaIdeCli } from "../src/cli";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 const fixtureConfigPath = resolve(testDir, "fixtures/workspace.config.ts");
@@ -78,6 +79,31 @@ describe("schema-ide-cli", () => {
       expect(result.stdout).toContain("Schema IDE validation failed.");
       expect(result.stdout).toContain("error workflows/onboarding.json:1:20");
       expect(result.stdout).toContain("[cross-file] Unknown action: missing");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("lets consumers ship a schema-specific CLI without requiring --schema", async () => {
+    const directory = await createFixtureWorkspace();
+    const workspace = await loadSchemaIdeWorkspaceConfig(fixtureConfigPath);
+    const cli = createSchemaIdeCli({ name: "workflow-fixture", workspace });
+
+    try {
+      const help = await cli.run(["help"]);
+      const validation = await cli.run(["validate", "--dir", directory, "--json"]);
+      const body = JSON.parse(validation.stdout) as {
+        readonly summary: { readonly valid: boolean; readonly errorCount: number };
+        readonly diagnostics: readonly { readonly message: string }[];
+      };
+
+      expect(help.exitCode).toBe(0);
+      expect(help.stdout).toContain("Usage: workflow-fixture <command> [--schema <path>]");
+      expect(validation.exitCode).toBe(1);
+      expect(body.summary).toMatchObject({ valid: false, errorCount: 1 });
+      expect(body.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+        "Unknown action: missing",
+      ]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
