@@ -1,5 +1,6 @@
 import { Result, Schema, SchemaIssue } from "effect";
 import { codecForPath, formatForPath } from "./document-codec";
+import { BuiltInFileTypeRegistry, type SchemaIdeFileTypeRegistryService } from "./file-type";
 import { parseErrorToDiagnostics, summarizeDiagnostics } from "./diagnostics";
 import { reflectEffectSchema } from "./reflection";
 import type {
@@ -67,6 +68,7 @@ export interface WorkspaceSchema<
 
 export interface WorkspaceDecodeOptions {
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
+  readonly fileTypes?: SchemaIdeFileTypeRegistryService | undefined;
 }
 
 interface FieldSchema<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
@@ -180,7 +182,7 @@ class FileSetSchema<A, RouteId extends string> implements FieldSchema<
 
     for (const file of matches) {
       usedPaths.add(file.path);
-      const codec = codecForPath(file.path, options.defaultFormat);
+      const codec = codecForPath(file.path, options.defaultFormat, options.fileTypes);
       const parsed = codec.parse(file.content, file.path);
       if (!parsed.success) {
         diagnostics.push(parsed.diagnostic);
@@ -226,7 +228,7 @@ class FileSetSchema<A, RouteId extends string> implements FieldSchema<
       .map((file) => ({
         path: file.path,
         schemaId: this.id,
-        format: formatForPath(file.path, options.defaultFormat),
+        format: formatForPath(file.path, options.defaultFormat, options.fileTypes),
       }));
   }
 
@@ -373,7 +375,11 @@ class StructWorkspaceSchema<Fields extends FieldShape> implements WorkspaceSchem
         .map((file) => ({
           path: file.path,
           schemaId: null,
-          format: formatForPath(file.path, resolvedOptions.defaultFormat),
+          format: formatForPath(
+            file.path,
+            resolvedOptions.defaultFormat,
+            resolvedOptions.fileTypes,
+          ),
         })),
     ].sort((left, right) => left.path.localeCompare(right.path));
   }
@@ -630,7 +636,10 @@ class ValidatedWorkspaceSchema<A, Routes extends WorkspaceRouteMap> implements W
 }
 
 function resolveOptions(options?: WorkspaceDecodeOptions): Required<WorkspaceDecodeOptions> {
-  return { defaultFormat: options?.defaultFormat ?? "json" };
+  return {
+    defaultFormat: options?.defaultFormat ?? "json",
+    fileTypes: options?.fileTypes ?? BuiltInFileTypeRegistry,
+  };
 }
 
 function pipeValue(value: unknown, fns: readonly ((schema: any) => any)[]): unknown {

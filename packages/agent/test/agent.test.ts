@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createOpenRouterProxyChatAdapter,
   createSchemaIdeChatAdapter,
+  executeSchemaIdeToolCallAsync,
+  fileTypeDefinitionForLookup,
   runSchemaIdeChatEval,
+  SchemaIdeFileTypeToolSystemPrompt,
   type SchemaIdeReflection,
   type SchemaIdeFileEdit,
   type SchemaIdePatchProposal,
@@ -14,6 +17,18 @@ import type { SourceFile } from "@schema-ide/core";
 describe("schema-ide-agent", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("looks up file type tool definitions without a runtime registry", () => {
+    expect(fileTypeDefinitionForLookup({ path: "forms/intake.pdf" })).toMatchObject({
+      id: "pdf",
+      operations: [{ name: "update_form_annotations" }, { name: "render_page_screenshot" }],
+    });
+    expect(fileTypeDefinitionForLookup({ fileType: "yaml" })).toMatchObject({
+      id: "yaml",
+      operations: [{ name: "json_patch" }],
+    });
+    expect(fileTypeDefinitionForLookup({ fileType: "json_patch" })).toBeNull();
   });
 
   it("applies tool calls to an in-memory workspace", async () => {
@@ -72,12 +87,114 @@ describe("schema-ide-agent", () => {
     }).promise;
 
     expect(result.message.content).toBe("Updated forms/intake.json.");
+    expect(String((requests[0] as any).messages[0].content)).toContain(
+      SchemaIdeFileTypeToolSystemPrompt,
+    );
+    expect((requests[0] as any).tools.map((tool: any) => tool.function.name)).toContain(
+      "get_file_type_tools",
+    );
     expect(files).toEqual([
       { path: "forms/intake.json", content: '{"id":"intake","title":"Intake Form"}\n' },
     ]);
     expect(traces.filter((trace) => trace.status === "success").map((trace) => trace.name)).toEqual(
       ["create_file", "replace_file_content", "validate_workspace"],
     );
+  });
+
+  it("exposes file type plugin inspection and operations as agent tools", async () => {
+    const files: SourceFile[] = [
+      { path: "config.json", content: '{"name":"Demo","enabled":true}\n' },
+    ];
+    const tools = toolsFor(files);
+
+    const inspection = await executeSchemaIdeToolCallAsync(
+      tools,
+      "inspect_file",
+      JSON.stringify({ path: "config.json" }),
+    );
+
+    expect(inspection.isError).toBe(false);
+    expect(inspection.result).toMatchObject({
+      inspection: {
+        fileType: "json",
+        parsedData: { name: "Demo", enabled: true },
+        diagnostics: [],
+      },
+    });
+
+    const lookup = await executeSchemaIdeToolCallAsync(
+      tools,
+      "get_file_type_tools",
+      JSON.stringify({ path: "config.json" }),
+    );
+
+    expect(lookup.isError).toBe(false);
+    const lookupResult = lookup.result as {
+      readonly lookup: {
+        readonly plugin: { readonly id: string; readonly label: string };
+        readonly tools: readonly { readonly name: string; readonly args: unknown }[];
+      };
+    };
+    expect(lookupResult.lookup.plugin).toMatchObject({ id: "json", label: "JSON" });
+    expect(lookupResult.lookup).toMatchObject({
+      operations: [
+        {
+          name: "json_patch",
+          parametersJsonSchema: {
+            type: "object",
+            required: ["patch"],
+          },
+          outputJsonSchema: {
+            type: "object",
+            required: ["value"],
+          },
+        },
+      ],
+    });
+    expect(lookupResult.lookup.tools[0]).toMatchObject({
+      name: "inspect_file",
+      args: { path: "config.json" },
+    });
+
+    const pdfLookup = await executeSchemaIdeToolCallAsync(
+      tools,
+      "get_file_type_tools",
+      JSON.stringify({ fileType: "pdf" }),
+    );
+    expect(pdfLookup.isError).toBe(false);
+    expect(pdfLookup.result).toMatchObject({
+      lookup: {
+        plugin: { id: "pdf", label: "PDF" },
+        operations: [{ name: "update_form_annotations" }, { name: "render_page_screenshot" }],
+      },
+    });
+
+    const pluginList = await executeSchemaIdeToolCallAsync(
+      tools,
+      "list_file_type_plugins",
+      JSON.stringify({}),
+    );
+    expect(pluginList.isError).toBe(false);
+    const plugins = (pluginList.result as { readonly plugins: readonly any[] }).plugins;
+    expect(plugins.map((plugin) => plugin.id)).toEqual(["json", "yaml", "pdf"]);
+    expect(plugins.find((plugin) => plugin.id === "pdf")?.operations).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "update_form_annotations" })]),
+    );
+
+    const patch = await executeSchemaIdeToolCallAsync(
+      tools,
+      "apply_file_type_operation",
+      JSON.stringify({
+        path: "config.json",
+        operation: "json_patch",
+        args: {
+          patch: [{ op: "replace", path: "/enabled", value: false }],
+        },
+      }),
+    );
+
+    expect(patch.isError).toBe(false);
+    expect(JSON.parse(files[0]!.content)).toEqual({ name: "Demo", enabled: false });
   });
 
   it("uses the protocol HttpApi client for standalone chat", async () => {

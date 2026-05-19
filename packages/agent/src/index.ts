@@ -10,10 +10,14 @@ export {
   CreateFileTool,
   decodeSchemaIdeToolArgs,
   executeSchemaIdeToolCall,
+  executeSchemaIdeToolCallAsync,
   GetDiagnosticsTool,
+  GetFileTypeToolsTool,
   GetJsonSchemaTool,
   GrepFilesTool,
+  InspectFileTool,
   ListFilesTool,
+  ListFileTypePluginsTool,
   openRouterSchemaIdeTools,
   openRouterSchemaIdeToolsForMode,
   ProposePatchTool,
@@ -22,8 +26,16 @@ export {
   SchemaIdeToolkit,
   ValidateWorkspaceTool,
   WriteFileTool,
+  FileTypeToolSystemPrompt,
+  ApplyFileTypeOperationTool,
   type SchemaIdeToolExecution,
 } from "./schema-ide-toolkit";
+export {
+  fileTypeDefinitionForLookup,
+  fileTypePluginForLookup,
+  fileTypeToolHelp,
+  SchemaIdeFileTypeToolSystemPrompt,
+} from "./file-type-tool-prompt";
 export {
   runSchemaIdeChatEval,
   type SchemaIdeChatEvalFixture,

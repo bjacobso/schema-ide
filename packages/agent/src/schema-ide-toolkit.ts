@@ -1,5 +1,16 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { Tool, Toolkit } from "effect/unstable/ai";
+import {
+  applyFileTypeOperationEffect,
+  BuiltInFileTypeRegistry,
+  inspectFileEffect,
+} from "@schema-ide/core";
+import {
+  fileTypePluginForLookup,
+  fileTypeToolHelp,
+  SchemaIdeFileTypeToolSystemPrompt,
+} from "./file-type-tool-prompt";
+import { OperationDef } from "@schema-ide/core/file-type-definitions";
 import type { SchemaIdeToolRuntime } from "./types";
 import type { OpenRouterToolDefinition } from "@schema-ide/protocol";
 
@@ -42,6 +53,16 @@ const MultiEditResult = Schema.Struct({
   validation: ValidationSummary,
 });
 
+const FileTypeOperationResult = Schema.Struct({
+  success: Schema.Boolean,
+  path: Schema.String,
+  operation: Schema.String,
+  result: Schema.Unknown,
+  validation: ValidationSummary,
+});
+
+export const FileTypeToolSystemPrompt = SchemaIdeFileTypeToolSystemPrompt;
+
 export const ListFilesTool = Tool.make("list_files", {
   description: "List all in-memory files in the Schema IDE workspace.",
   success: Schema.Struct({
@@ -80,6 +101,51 @@ export const GrepFilesTool = Tool.make("grep_files", {
       }),
     ),
     count: Schema.Number,
+  }),
+  failure: ToolFailure,
+  failureMode: "return",
+});
+
+export const ListFileTypePluginsTool = Tool.make("list_file_type_plugins", {
+  description:
+    "List registered file type plugins and the operations each plugin can perform on matching files.",
+  success: Schema.Struct({
+    plugins: Schema.Array(Schema.Unknown),
+  }),
+  failure: ToolFailure,
+  failureMode: "return",
+});
+
+export const GetFileTypeToolsTool = Tool.make("get_file_type_tools", {
+  description:
+    "Look up the file type plugin, agent workflow instructions, and available structured operations for a file path or file type id.",
+  parameters: Schema.Struct({
+    path: Schema.optional(
+      Schema.String.annotate({
+        description: "Workspace path whose file type tools should be returned.",
+      }),
+    ),
+    fileType: Schema.optional(
+      Schema.String.annotate({
+        description: "File type id such as json, yaml, or pdf. Used when path is omitted.",
+      }),
+    ),
+  }),
+  success: Schema.Struct({
+    lookup: Schema.Unknown,
+  }),
+  failure: ToolFailure,
+  failureMode: "return",
+});
+
+export const InspectFileTool = Tool.make("inspect_file", {
+  description:
+    "Inspect a file using its registered file type plugin. Returns parsed data, parse diagnostics, metadata, and available operations.",
+  parameters: Schema.Struct({
+    path: Schema.String.annotate({ description: "Path of the file to inspect." }),
+  }),
+  success: Schema.Struct({
+    inspection: Schema.Unknown,
   }),
   failure: ToolFailure,
   failureMode: "return",
@@ -180,6 +246,26 @@ export const ApplyEditsTool = Tool.make("apply_edits", {
   failureMode: "return",
 });
 
+export const ApplyFileTypeOperationTool = Tool.make("apply_file_type_operation", {
+  description:
+    "Apply a named operation exposed by the file's registered file type plugin, such as json_patch for JSON or YAML files.",
+  parameters: Schema.Struct({
+    path: Schema.String.annotate({ description: "Path of the file to update." }),
+    operation: Schema.String.annotate({ description: "Plugin operation name to run." }),
+    args: Schema.Unknown.annotate({
+      description: "Operation-specific arguments. Inspect the file or list plugins first.",
+    }),
+    validate: Schema.optional(
+      Schema.Boolean.annotate({
+        description: "Validate before committing. Defaults to true.",
+      }),
+    ),
+  }),
+  success: FileTypeOperationResult,
+  failure: ToolFailure,
+  failureMode: "return",
+});
+
 export const ProposePatchTool = Tool.make("propose_patch", {
   description:
     "Prepare a multi-file patch for user approval without mutating the workspace. Use this in plan mode.",
@@ -202,6 +288,9 @@ export const SchemaIdeToolkit = Toolkit.make(
   ListFilesTool,
   ReadFileTool,
   GrepFilesTool,
+  ListFileTypePluginsTool,
+  GetFileTypeToolsTool,
+  InspectFileTool,
   CreateFileTool,
   WriteFileTool,
   ReplaceFileContentTool,
@@ -209,12 +298,16 @@ export const SchemaIdeToolkit = Toolkit.make(
   GetJsonSchemaTool,
   GetDiagnosticsTool,
   ApplyEditsTool,
+  ApplyFileTypeOperationTool,
   ProposePatchTool,
 );
 
 type SchemaIdeToolEntry = {
   readonly tool: Tool.Any;
-  readonly handle: (tools: SchemaIdeToolRuntime, args: Record<string, unknown>) => unknown;
+  readonly handle: (
+    tools: SchemaIdeToolRuntime,
+    args: Record<string, unknown>,
+  ) => unknown | Promise<unknown>;
 };
 
 const toolEntries = [
@@ -239,6 +332,56 @@ const toolEntries = [
       const { query } = args as Tool.Parameters<typeof GrepFilesTool>;
       const matches = tools.searchFiles(query);
       return { matches, count: matches.length };
+    },
+  },
+  {
+    tool: ListFileTypePluginsTool,
+    handle: (tools) => {
+      const registry = tools.fileTypes ?? BuiltInFileTypeRegistry;
+      return {
+        plugins: registry.plugins.map((plugin) => ({
+          id: plugin.id,
+          label: plugin.label,
+          extensions: plugin.extensions,
+          mediaTypes: plugin.mediaTypes ?? [],
+          operations: (plugin.operations ?? []).map(OperationDef.toJson),
+        })),
+      };
+    },
+  },
+  {
+    tool: GetFileTypeToolsTool,
+    handle: (tools, args) => {
+      const { path, fileType } = args as Tool.Parameters<typeof GetFileTypeToolsTool>;
+      if (!path && !fileType) return { error: "Provide path or fileType." };
+      const registry = tools.fileTypes ?? BuiltInFileTypeRegistry;
+      const plugin = fileTypePluginForLookup({ path, fileType, registry });
+      if (!plugin) return { error: `Unknown file type: ${fileType}` };
+      return {
+        lookup: {
+          query: {
+            ...(path ? { path } : {}),
+            ...(fileType ? { fileType } : {}),
+          },
+          ...fileTypeToolHelp({ plugin, path }),
+        },
+      };
+    },
+  },
+  {
+    tool: InspectFileTool,
+    handle: (tools, args) => {
+      const { path } = args as Tool.Parameters<typeof InspectFileTool>;
+      const file = tools.readFile(path);
+      if (!file) return { error: `File not found: ${path}` };
+      return Effect.runPromise(
+        inspectFileEffect(file, { registry: tools.fileTypes ?? BuiltInFileTypeRegistry }),
+      ).then((inspection) => ({
+        inspection: {
+          ...inspection,
+          operations: inspection.operations.map(OperationDef.toJson),
+        },
+      }));
     },
   },
   {
@@ -317,6 +460,33 @@ const toolEntries = [
     },
   },
   {
+    tool: ApplyFileTypeOperationTool,
+    handle: (tools, args) => {
+      const { path, operation, validate } = args as Tool.Parameters<
+        typeof ApplyFileTypeOperationTool
+      >;
+      const file = tools.readFile(path);
+      if (!file) return { error: `File not found: ${path}` };
+
+      const operationArgs = isRecord(args["args"]) ? args["args"] : {};
+      return Effect.runPromise(
+        applyFileTypeOperationEffect(
+          { file, operation, args: operationArgs },
+          { registry: tools.fileTypes ?? BuiltInFileTypeRegistry },
+        ),
+      ).then((result) => {
+        const applied = tools.applyEdits([result.file], { validate });
+        return {
+          success: true,
+          path,
+          operation,
+          result: result.result,
+          validation: applied.validation,
+        };
+      });
+    },
+  },
+  {
     tool: ProposePatchTool,
     handle: (tools, args) => {
       const { label, edits } = args as Tool.Parameters<typeof ProposePatchTool>;
@@ -351,6 +521,9 @@ const planModeAllowedTools: ReadonlySet<string> = new Set([
   ListFilesTool.name,
   ReadFileTool.name,
   GrepFilesTool.name,
+  ListFileTypePluginsTool.name,
+  GetFileTypeToolsTool.name,
+  InspectFileTool.name,
   ValidateWorkspaceTool.name,
   GetJsonSchemaTool.name,
   GetDiagnosticsTool.name,
@@ -424,6 +597,51 @@ export function executeSchemaIdeToolCall(
 
   try {
     const result = entry.handle(tools, decoded.args);
+    if (isPromiseLike(result)) {
+      return {
+        args: decoded.args,
+        result: { error: `Tool ${name} is asynchronous. Use executeSchemaIdeToolCallAsync.` },
+        isError: true,
+      };
+    }
+    return { args: decoded.args, result, isError: isToolError(result) };
+  } catch (error) {
+    return {
+      args: decoded.args,
+      result: { error: error instanceof Error ? error.message : String(error) },
+      isError: true,
+    };
+  }
+}
+
+export async function executeSchemaIdeToolCallAsync(
+  tools: SchemaIdeToolRuntime,
+  name: string,
+  rawArguments: string,
+  options: { readonly planMode?: boolean | undefined } = {},
+): Promise<SchemaIdeToolExecution> {
+  if (options.planMode && !planModeAllowedTools.has(name)) {
+    return {
+      args: {},
+      result: {
+        error: `Tool ${name} is disabled in plan mode. Use propose_patch for edits.`,
+      },
+      isError: true,
+    };
+  }
+
+  const decoded = decodeSchemaIdeToolArgs(name, rawArguments);
+  if ("error" in decoded) {
+    return { args: decoded.args, result: { error: decoded.error }, isError: true };
+  }
+
+  const entry = toolRegistry.get(name);
+  if (!entry) {
+    return { args: decoded.args, result: { error: `Unknown tool: ${name}` }, isError: true };
+  }
+
+  try {
+    const result = await entry.handle(tools, decoded.args);
     return { args: decoded.args, result, isError: isToolError(result) };
   } catch (error) {
     return {
@@ -448,4 +666,8 @@ function getToolJsonSchema(tool: Tool.Any): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return isRecord(value) && typeof value["then"] === "function";
 }

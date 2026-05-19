@@ -9,6 +9,7 @@ Most "AI edits my config" experiences treat the model as the source of truth and
 The pieces:
 
 - **Schema-routed virtual workspace.** Files are addressed by path; paths match schemas by glob; validation runs continuously and produces a structured `SchemaIdeReflection`.
+- **Pluggable file types.** JSON and YAML are built-in Effect-based plugins, and consumers can register more file families with parsers, metadata, diagnostics, and structured operations such as JSON Patch or PDF annotation updates.
 - **Reflection stream.** Diagnostics, parsed values, route matches, and validation summaries are first-class — consumable by the UI and the agent on equal footing.
 - **Schema-driven editor intelligence.** CodeMirror uses the generated JSON Schema for completions, hover, lint actions, quick fixes, and reference lookups.
 - **Agent tools scoped to the workspace.** `list_files`, `read_file`, `grep_files`, `create_file`, `write_file`, `replace_file_content`, `apply_edits`, `propose_patch`, `get_json_schema`, `get_diagnostics`, `validate_workspace`. The agent cannot escape the sandbox.

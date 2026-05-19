@@ -1,6 +1,7 @@
 import { Result, Schema, SchemaIssue } from "effect";
 import { parseDocument } from "./document-codec";
 import { parseErrorToDiagnostics, summarizeDiagnostics } from "./diagnostics";
+import type { SchemaIdeFileTypeRegistryService } from "./file-type";
 import {
   isWorkspaceSchema,
   type WorkspaceRouteMap,
@@ -26,13 +27,15 @@ export function validateSingleDocument<A>({
   content,
   format,
   path = null,
+  fileTypes,
 }: {
   readonly schema: Schema.Schema<A>;
   readonly content: string;
   readonly format: SchemaIdeDocumentFormat;
   readonly path?: string | null;
+  readonly fileTypes?: SchemaIdeFileTypeRegistryService | undefined;
 }): ValidationResult<A> {
-  const parsed = parseDocument(content, format, path);
+  const parsed = parseDocument(content, format, path, fileTypes);
 
   if (!parsed.success) {
     const diagnostics = [parsed.diagnostic];
@@ -74,14 +77,16 @@ export function validateSchemaIdeValue<A>({
   files,
   activeFile,
   activeFormat,
+  fileTypes,
 }: {
   readonly schema: SchemaIdeInputSchema<A>;
   readonly files: readonly SourceFile[];
   readonly activeFile: string | null;
   readonly activeFormat: SchemaIdeDocumentFormat;
+  readonly fileTypes?: SchemaIdeFileTypeRegistryService | undefined;
 }): ValidationResult<A> {
   if (isWorkspaceSchema(schema)) {
-    return schema.decode({ files }, { defaultFormat: activeFormat });
+    return schema.decode({ files }, { defaultFormat: activeFormat, fileTypes });
   }
 
   const file = activeFile ? files.find((candidate) => candidate.path === activeFile) : files[0];
@@ -90,6 +95,7 @@ export function validateSchemaIdeValue<A>({
     content: file?.content ?? "",
     format: activeFormat,
     path: file?.path ?? null,
+    fileTypes,
   });
 }
 

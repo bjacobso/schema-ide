@@ -1,4 +1,8 @@
-import type { SchemaIdeReflection, SourceFile } from "@schema-ide/core";
+import type {
+  SchemaIdeFileTypeRegistryService,
+  SchemaIdeReflection,
+  SourceFile,
+} from "@schema-ide/core";
 
 export interface SchemaIdeChatModel {
   readonly id: string;
@@ -85,4 +89,5 @@ export interface SchemaIdeToolRuntime {
   readonly getSchema: () => SchemaIdeReflection["schemas"];
   readonly getJsonSchema: (schemaId?: string | null) => unknown;
   readonly getDiagnostics: () => SchemaIdeReflection["diagnostics"];
+  readonly fileTypes?: SchemaIdeFileTypeRegistryService | undefined;
 }

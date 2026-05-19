@@ -6,6 +6,10 @@ It has no React, agent, or server dependency.
 Runtime dependencies are `effect` and `yaml`.
 This package is the extraction target for `@schema-ide/core`.
 
+File parsing is backed by Effect-based file type plugins. JSON and YAML are
+built in, and custom registries can add additional formats with structured
+inspection, metadata, diagnostics, and named operations.
+
 ```ts
 import { Schema } from "effect";
 import { Workspace, validateSchemaIdeValue } from "@schema-ide/core";

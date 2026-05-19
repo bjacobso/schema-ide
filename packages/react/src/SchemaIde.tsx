@@ -25,7 +25,12 @@ import type {
   SchemaIdeToolCall,
   SchemaIdeToolRuntime,
 } from "@schema-ide/agent";
-import { codecForPath, parseDocument, stringifyDocument } from "@schema-ide/core";
+import {
+  codecForPath,
+  makeSchemaIdeFileTypeRegistry,
+  parseDocument,
+  stringifyDocument,
+} from "@schema-ide/core";
 import { isWorkspaceSchema } from "@schema-ide/core";
 import {
   applyWorkspaceChange,
@@ -42,7 +47,12 @@ import {
   type WorkspaceRouteMap,
   type WorkspaceRevisionMetadata,
 } from "@schema-ide/core";
-import type { SchemaIdeDocumentFormat, SourceFile } from "@schema-ide/core";
+import type {
+  SchemaIdeDocumentFormat,
+  SchemaIdeFileTypePlugin,
+  SchemaIdeFileTypeRegistryService,
+  SourceFile,
+} from "@schema-ide/core";
 import { Badge, Button, ScrollArea, Textarea } from "@schema-ide/ui";
 import { getSchemaIdeFileDiagnosticCounts } from "./diagnostics";
 import {
@@ -58,6 +68,7 @@ export interface SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = 
   readonly schema: SchemaIdeInputSchema<A, Routes>;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly allowedFormats?: readonly SchemaIdeDocumentFormat[] | undefined;
+  readonly fileTypes?: readonly SchemaIdeFileTypePlugin[] | undefined;
   readonly initialValue?: A | undefined;
   readonly value?: A | undefined;
   readonly onChange?: ((value: A) => void) | undefined;
@@ -77,6 +88,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   schema,
   defaultFormat = "json",
   allowedFormats = ["json", "yaml"],
+  fileTypes,
   initialValue,
   value,
   onChange,
@@ -92,10 +104,18 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   defaultMode = "code",
 }: SchemaIdeProps<A, Routes>) {
   const workspaceMode = isWorkspaceSchema(schema);
+  const fileTypeRegistry = useMemo(() => makeSchemaIdeFileTypeRegistry(fileTypes), [fileTypes]);
   const [activeFormat, setActiveFormat] = useState<SchemaIdeDocumentFormat>(defaultFormat);
   const [internalWorkspace, setInternalWorkspace] = useState<VersionedWorkspaceState>(() =>
     createVersionedWorkspace(
-      filesFromInitialState({ workspaceMode, initialFiles, initialValue, value, defaultFormat }),
+      filesFromInitialState({
+        workspaceMode,
+        initialFiles,
+        initialValue,
+        value,
+        defaultFormat,
+        fileTypes: fileTypeRegistry,
+      }),
     ),
   );
   const initialWorkspaceFiles = files ?? internalWorkspace.files;
@@ -152,7 +172,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
     : (resolvedFiles[0] ?? null);
   const selectedFormat = selectedFile
     ? workspaceMode
-      ? codecForPath(selectedFile.path, activeFormat).format
+      ? codecForPath(selectedFile.path, activeFormat, fileTypeRegistry).format
       : activeFormat
     : activeFormat;
 
@@ -163,8 +183,9 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
         files: resolvedFiles,
         activeFile: selectedFile?.path ?? null,
         activeFormat: selectedFormat,
+        fileTypes: fileTypeRegistry,
       }),
-    [activeFile, resolvedFiles, schema, selectedFile?.path, selectedFormat],
+    [activeFile, fileTypeRegistry, resolvedFiles, schema, selectedFile?.path, selectedFormat],
   );
 
   const reflection = useMemo(
@@ -197,11 +218,15 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   useEffect(() => {
     if (validation.value !== null) {
       if (!workspaceMode) {
-        lastEmittedValueRef.current = stringifyDocument(validation.value, selectedFormat);
+        lastEmittedValueRef.current = stringifyDocument(
+          validation.value,
+          selectedFormat,
+          fileTypeRegistry,
+        );
       }
       onChange?.(validation.value);
     }
-  }, [onChange, selectedFormat, validation.value, workspaceMode]);
+  }, [fileTypeRegistry, onChange, selectedFormat, validation.value, workspaceMode]);
 
   const updateFiles = useCallback(
     (nextFiles: readonly SourceFile[], nextActiveFile?: string | null) => {
@@ -238,10 +263,10 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   useEffect(() => {
     if (workspaceMode || files || value === undefined) return;
 
-    const nextContent = stringifyDocument(value, activeFormat);
+    const nextContent = stringifyDocument(value, activeFormat, fileTypeRegistry);
     if (lastEmittedValueRef.current === nextContent) return;
 
-    const extension = activeFormat === "yaml" ? "yaml" : "json";
+    const extension = extensionForFormat(activeFormat, fileTypeRegistry);
     const path =
       resolvedFiles[0]?.path.replace(/\.(json|ya?ml)$/i, `.${extension}`) ??
       `document.${extension}`;
@@ -250,7 +275,15 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
       { actor: "system", label: "Sync controlled value" },
       path,
     );
-  }, [activeFormat, commitWorkspaceChange, files, resolvedFiles, value, workspaceMode]);
+  }, [
+    activeFormat,
+    commitWorkspaceChange,
+    fileTypeRegistry,
+    files,
+    resolvedFiles,
+    value,
+    workspaceMode,
+  ]);
 
   const selectedCommittedFile = selectedFile
     ? (committedFiles.find((file) => file.path === selectedFile.path) ?? null)
@@ -331,7 +364,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
 
   const addFile = useCallback(() => {
     if (readOnly) return;
-    const extension = activeFormat === "yaml" ? "yaml" : "json";
+    const extension = extensionForFormat(activeFormat, fileTypeRegistry);
     let index = resolvedFiles.length + 1;
     let path = `new-file-${index}.${extension}`;
     while (resolvedFiles.some((file) => file.path === path)) {
@@ -342,12 +375,12 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
       {
         type: "createFile",
         path,
-        content: activeFormat === "yaml" ? "{}\n" : "{}\n",
+        content: "{}\n",
       },
       { actor: "user", label: `Create ${path}` },
       path,
     );
-  }, [activeFormat, commitWorkspaceChange, readOnly, resolvedFiles]);
+  }, [activeFormat, commitWorkspaceChange, fileTypeRegistry, readOnly, resolvedFiles]);
 
   const deleteActiveFile = useCallback(() => {
     if (!selectedFile || readOnly) return;
@@ -393,7 +426,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
         : (nextFiles[0] ?? null);
       const nextFormat = nextSelectedFile
         ? workspaceMode
-          ? codecForPath(nextSelectedFile.path, activeFormat).format
+          ? codecForPath(nextSelectedFile.path, activeFormat, fileTypeRegistry).format
           : activeFormat
         : activeFormat;
       const nextValidation = validateSchemaIdeValue({
@@ -401,6 +434,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
         files: nextFiles,
         activeFile: nextSelectedFile?.path ?? null,
         activeFormat: nextFormat,
+        fileTypes: fileTypeRegistry,
       });
 
       return createReflection({
@@ -411,7 +445,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
         validation: nextValidation,
       });
     },
-    [activeFormat, schema, workspaceMode],
+    [activeFormat, fileTypeRegistry, schema, workspaceMode],
   );
 
   const checkpointDraftsForAgentTurn = useCallback(
@@ -572,8 +606,16 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
               ?.jsonSchema ?? null)
           : reflectFiles(filesRef.current).activeJsonSchema,
       getDiagnostics: () => reflectFiles(filesRef.current).diagnostics,
+      fileTypes: fileTypeRegistry,
     }),
-    [applyFileEdits, commitWorkspaceChange, proposeFilePatch, readOnly, reflectFiles],
+    [
+      applyFileEdits,
+      commitWorkspaceChange,
+      fileTypeRegistry,
+      proposeFilePatch,
+      readOnly,
+      reflectFiles,
+    ],
   );
 
   return (
@@ -782,6 +824,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
                   previews as unknown as readonly SchemaIdePreviewRegistration<unknown, string>[]
                 }
                 readOnly={readOnly}
+                fileTypes={fileTypeRegistry}
               />
             ) : (
               <SchemaCodeMirrorEditor
@@ -828,6 +871,7 @@ function SchemaPreviewView({
   resolution,
   previews,
   readOnly,
+  fileTypes,
 }: {
   readonly file: SourceFile;
   readonly files: readonly SourceFile[];
@@ -836,8 +880,9 @@ function SchemaPreviewView({
   readonly resolution: SchemaIdePreviewResolution | null;
   readonly previews: readonly SchemaIdePreviewRegistration<unknown, string>[];
   readonly readOnly: boolean;
+  readonly fileTypes: SchemaIdeFileTypeRegistryService;
 }) {
-  const parsed = parseDocument(file.content, format, file.path);
+  const parsed = parseDocument(file.content, format, file.path, fileTypes);
   const diagnostics = reflection.diagnostics.filter(
     (diagnostic) => diagnostic.path === file.path || diagnostic.documentPath === file.path,
   );
@@ -1402,21 +1447,31 @@ function filesFromInitialState<A>({
   initialValue,
   value,
   defaultFormat,
+  fileTypes,
 }: {
   readonly workspaceMode: boolean;
   readonly initialFiles?: readonly SourceFile[] | undefined;
   readonly initialValue?: A | undefined;
   readonly value?: A | undefined;
   readonly defaultFormat: SchemaIdeDocumentFormat;
+  readonly fileTypes: SchemaIdeFileTypeRegistryService;
 }): readonly SourceFile[] {
   if (initialFiles?.length) return initialFiles;
   if (workspaceMode) return [];
+  const extension = extensionForFormat(defaultFormat, fileTypes);
   return [
     {
-      path: `document.${defaultFormat === "yaml" ? "yaml" : "json"}`,
-      content: stringifyDocument(value ?? initialValue ?? {}, defaultFormat),
+      path: `document.${extension}`,
+      content: stringifyDocument(value ?? initialValue ?? {}, defaultFormat, fileTypes),
     },
   ];
+}
+
+function extensionForFormat(
+  format: SchemaIdeDocumentFormat,
+  fileTypes: SchemaIdeFileTypeRegistryService,
+): string {
+  return fileTypes.pluginForFormat(format).extensions[0]?.replace(/^\./, "") ?? String(format);
 }
 
 function applyDraftsToFiles(

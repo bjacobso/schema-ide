@@ -1,6 +1,6 @@
 import type { SchemaAST } from "effect";
 
-export type SchemaIdeDocumentFormat = "json" | "yaml";
+export type SchemaIdeDocumentFormat = "json" | "yaml" | (string & {});
 
 export interface SourceFile {
   readonly path: string;
@@ -14,6 +14,7 @@ export interface SourceTree {
 export type SchemaIdeDiagnosticSource =
   | "json-parse"
   | "yaml-parse"
+  | "file-type"
   | "schema"
   | "workspace"
   | "cross-file";

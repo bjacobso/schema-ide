@@ -19,7 +19,8 @@ import {
 import { SchemaIdeHttpApi } from "@schema-ide/protocol";
 import {
   decodeSchemaIdeToolArgs,
-  executeSchemaIdeToolCall,
+  executeSchemaIdeToolCallAsync,
+  FileTypeToolSystemPrompt,
   openRouterSchemaIdeToolsForMode,
 } from "./schema-ide-toolkit";
 
@@ -105,6 +106,7 @@ async function runOpenRouterTurn(
     "You are helping edit an in-memory schema-backed workspace.",
     "The user edits JSON or YAML files. Effect Schema validation is authoritative.",
     "Use tools to inspect and edit files directly when the user asks for changes.",
+    FileTypeToolSystemPrompt,
     input.planMode
       ? "Plan mode is active: do not mutate files. Use propose_patch when suggesting edits."
       : "Direct edit mode is active: apply edits when the user asks for changes.",
@@ -145,7 +147,7 @@ async function runOpenRouterTurn(
       const traceBase = openRouterToolCallToTrace(toolCall);
       input.onToolCall?.({ ...traceBase, status: "pending" });
 
-      const execution = executeSchemaIdeToolCall(
+      const execution = await executeSchemaIdeToolCallAsync(
         input.tools,
         toolCall.function.name,
         toolCall.function.arguments,
