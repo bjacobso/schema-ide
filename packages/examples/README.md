@@ -6,9 +6,47 @@ Examples currently cover prompt evals, survey questions, and release workflows.
 The package depends on core only and has no React, agent, or server dependency.
 This package is the extraction target for `@schema-ide/examples`.
 
+Each example is self-contained under `workspaces/<example>/`:
+
+- `example.json` describes the example and the workspace schema it uses
+- `schema-ide.config.ts` lets the CLI validate the workspace from disk
+- `files/` contains the JSON/YAML files loaded by the UI
+
+Run `pnpm run generate` to bundle those definitions and files into
+`src/generated/examples.ts` so browser UIs can import the examples as plain
+JavaScript.
+
 ```ts
-import { randomSchemaIdeExample, schemaIdeExamples } from "@schema-ide/examples";
+import {
+  randomSchemaIdeExample,
+  schemaIdeExampleDefinitions,
+  schemaIdeExamples,
+} from "@schema-ide/examples";
 
 const first = schemaIdeExamples[0];
 const random = randomSchemaIdeExample();
+const configPath = schemaIdeExampleDefinitions[0]?.configPath;
 ```
+
+## Generate
+
+```bash
+pnpm --dir packages/examples generate
+```
+
+The package runs generation before `build`, `test`, and `typecheck`.
+
+## CLI Fixtures
+
+Each example has a matching CLI config under `cli/`, so the same workspaces can
+be validated from disk:
+
+```bash
+schema-ide validate \
+  --schema packages/examples/workspaces/workflow-json/schema-ide.config.ts \
+  --dir packages/examples/workspaces/workflow-json/files \
+  --json
+```
+
+Some examples intentionally contain validation errors so the UI and CLI have
+diagnostics to display.
