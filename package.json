@@ -1,0 +1,24 @@
+{
+  "name": "schema-ide-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "pnpm run build && sh -c 'pnpm run dev:server & server_pid=$!; sleep 1; if ! kill -0 $server_pid 2>/dev/null; then wait $server_pid; exit 1; fi; trap \"kill $server_pid 2>/dev/null || true\" EXIT INT TERM; pnpm run dev:playground'",
+    "dev:server": "pnpm --dir packages/server dev",
+    "dev:playground": "pnpm --dir apps/playground dev",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "playground:build": "pnpm --dir apps/playground build",
+    "serve": "pnpm run build && pnpm run playground:build && SCHEMA_IDE_STATIC_DIR=../../apps/playground/dist pnpm --dir packages/server start",
+    "serve:smoke": "node scripts/smoke-serve.mjs",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "oxfmt": "0.44.0",
+    "turbo": "2.8.20"
+  },
+  "packageManager": "pnpm@10.11.0"
+}

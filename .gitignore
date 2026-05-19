@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*/dist/
+packages/*/dist/
+apps/*/dist/
+.turbo/
+*/.turbo/
+packages/*/.turbo/
+apps/*/.turbo/
+*.tsbuildinfo

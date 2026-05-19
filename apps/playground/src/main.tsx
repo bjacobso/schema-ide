@@ -1,0 +1,82 @@
+import { StrictMode, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { createSchemaIdeChatAdapter } from "@schema-ide/agent";
+import {
+  randomSchemaIdeExample,
+  schemaIdeExamples,
+  type SchemaIdeExample,
+} from "@schema-ide/examples";
+import { SchemaIde } from "@schema-ide/react";
+import { Button } from "@schema-ide/ui";
+import "./styles.css";
+
+function App() {
+  const [example, setExample] = useState<SchemaIdeExample>(() => schemaIdeExamples[0]!);
+  const [revision, setRevision] = useState(0);
+  const chat = useMemo(
+    () =>
+      createSchemaIdeChatAdapter({
+        baseUrl: import.meta.env.VITE_SCHEMA_IDE_API_BASE_URL ?? "",
+      }),
+    [],
+  );
+
+  const loadExample = (nextExample: SchemaIdeExample) => {
+    setExample(nextExample);
+    setRevision((current) => current + 1);
+  };
+
+  return (
+    <main className="flex h-svh min-h-0 flex-col bg-background text-foreground">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
+        <div>
+          <div className="text-sm font-semibold">Schema IDE Playground</div>
+          <div className="text-xs text-muted-foreground">Local package playground</div>
+        </div>
+
+        <select
+          value={example.id}
+          onChange={(event) => {
+            const nextExample = schemaIdeExamples.find(
+              (candidate) => candidate.id === event.target.value,
+            );
+            if (nextExample) loadExample(nextExample);
+          }}
+          className="ml-auto h-8 min-w-56 rounded-md border border-border bg-background px-2 text-xs"
+          aria-label="Schema IDE example"
+        >
+          {schemaIdeExamples.map((candidate) => (
+            <option key={candidate.id} value={candidate.id}>
+              {candidate.name}
+            </option>
+          ))}
+        </select>
+
+        <Button size="sm" variant="outline" onClick={() => loadExample(randomSchemaIdeExample())}>
+          Random
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => loadExample(example)}>
+          Reset
+        </Button>
+      </div>
+
+      <div className="min-h-0 flex-1">
+        <SchemaIde
+          key={`${example.id}:${revision}`}
+          schema={example.schema}
+          initialFiles={example.files}
+          defaultFormat={example.defaultFormat ?? "json"}
+          chat={chat}
+          title={example.name}
+          showDebug
+        />
+      </div>
+    </main>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

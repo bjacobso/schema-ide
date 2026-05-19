@@ -1,0 +1,26 @@
+{
+  "name": "schema-ide-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4318",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@schema-ide/agent": "workspace:*",
+    "@schema-ide/examples": "workspace:*",
+    "@schema-ide/react": "workspace:*",
+    "@schema-ide/ui": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}
