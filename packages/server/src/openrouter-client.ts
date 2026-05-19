@@ -111,7 +111,7 @@ export const makeLocalDebugOpenRouterClient = (): OpenRouterClientService => ({
     const content = [
       "Local Schema IDE debug server is running.",
       prompt ? `Received: ${prompt.slice(0, 240)}` : "No user message was provided.",
-      "Set SCHEMA_IDE_OPENROUTER_API_KEY to use a real model.",
+      "Set OPENROUTER_API_KEY to use a real model.",
     ].join("\n\n");
 
     return Effect.succeed({

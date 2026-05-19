@@ -12,6 +12,6 @@ import { createSchemaIdeChatAdapter } from "@schema-ide/agent";
 
 const chat = createSchemaIdeChatAdapter({
   baseUrl: "/v1",
-  defaultModel: "anthropic/claude-sonnet-4.5",
+  defaultModel: "~anthropic/claude-sonnet-latest",
 });
 ```

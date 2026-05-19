@@ -87,6 +87,22 @@ export const SchemaIdeModelSchema = Schema.Struct({
 
 export type SchemaIdeModel = typeof SchemaIdeModelSchema.Type;
 
+export const SCHEMA_IDE_OPENROUTER_MODELS = [
+  // Based on the OpenRouter programming model list:
+  // https://openrouter.ai/models?categories=programming&input_modalities=file,image,text&order=most-popular
+  { id: "openai/gpt-chat-latest", label: "GPT Chat Latest" },
+  { id: "~openai/gpt-latest", label: "GPT Latest" },
+  { id: "~openai/gpt-mini-latest", label: "GPT Mini Latest" },
+  { id: "~anthropic/claude-sonnet-latest", label: "Claude Sonnet" },
+  { id: "~anthropic/claude-haiku-latest", label: "Claude Haiku" },
+  { id: "~anthropic/claude-opus-latest", label: "Claude Opus" },
+  { id: "~google/gemini-pro-latest", label: "Gemini Pro Latest" },
+  { id: "~google/gemini-flash-latest", label: "Gemini Flash Latest" },
+  { id: "~moonshotai/kimi-latest", label: "Kimi Latest" },
+] as const satisfies readonly SchemaIdeModel[];
+
+export const SCHEMA_IDE_DEFAULT_OPENROUTER_MODEL = SCHEMA_IDE_OPENROUTER_MODELS[0].id;
+
 export const SchemaIdeModelsResponseSchema = Schema.Struct({
   models: Schema.Array(SchemaIdeModelSchema),
 });

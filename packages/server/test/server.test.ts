@@ -90,7 +90,7 @@ describe("schema-ide-server", () => {
             message: {
               role: "assistant",
               content:
-                "Local Schema IDE debug server is running.\n\nReceived: Hello from the playground\n\nSet SCHEMA_IDE_OPENROUTER_API_KEY to use a real model.",
+                "Local Schema IDE debug server is running.\n\nReceived: Hello from the playground\n\nSet OPENROUTER_API_KEY to use a real model.",
             },
           },
         ],

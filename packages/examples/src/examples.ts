@@ -31,7 +31,7 @@ export const schemaIdeExamples: readonly SchemaIdeExample[] = [
           {
             id: "support-router",
             description: "Route support requests to the right queue.",
-            model: "openai/gpt-5.1",
+            model: "~openai/gpt-latest",
             variables: ["ticket", "queues"],
             template: "Classify {{ticket}} into one of {{queues}}.",
           },
@@ -87,7 +87,7 @@ export const schemaIdeExamples: readonly SchemaIdeExample[] = [
         content: [
           "id: release-notes",
           "description: Draft concise release notes from merged changes.",
-          "model: anthropic/claude-sonnet-4.5",
+          "model: ~anthropic/claude-sonnet-latest",
           "variables:",
           "  - changes",
           "template: |",
@@ -137,8 +137,12 @@ export const schemaIdeExamples: readonly SchemaIdeExample[] = [
         content: "id: name\nprompt: What is your name?\nanswerType: text\n",
       },
       {
+        path: "questions/email.yaml",
+        content: "id: email\nprompt: What is your email address?\nanswerType: text\n",
+      },
+      {
         path: "surveys/intake.yaml",
-        content: "id: intake\ntitle: Intake Survey\nquestionIds:\n  - name\n  - missing-email\n",
+        content: "id: intake\ntitle: Intake Survey\nquestionIds:\n  - name\n  - email\n",
       },
     ],
   },

@@ -8,6 +8,8 @@ import { FetchHttpClient, HttpApiClient } from "@effect/platform";
 import { Effect, Schema } from "effect";
 import {
   OpenRouterChatCompletionResponseSchema,
+  SCHEMA_IDE_DEFAULT_OPENROUTER_MODEL,
+  SCHEMA_IDE_OPENROUTER_MODELS,
   type OpenRouterAssistantResponseMessage,
   type OpenRouterChatRequest,
   type OpenRouterMessage,
@@ -32,7 +34,7 @@ export interface SchemaIdeHttpChatAdapterOptions {
   readonly models?: readonly { readonly id: string; readonly label: string }[] | undefined;
 }
 
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
+const DEFAULT_MODEL = SCHEMA_IDE_DEFAULT_OPENROUTER_MODEL;
 const DEFAULT_PROXY_URL = "/v1/chat";
 const MAX_TOOL_ROUNDS = 8;
 
@@ -75,10 +77,7 @@ function createChatAdapter(options: {
   ) => Promise<OpenRouterAssistantResponseMessage>;
 }): SchemaIdeChatAdapter {
   return {
-    models: options.models ?? [
-      { id: DEFAULT_MODEL, label: "Claude Sonnet" },
-      { id: "openai/gpt-5.1", label: "GPT 5.1" },
-    ],
+    models: options.models ?? SCHEMA_IDE_OPENROUTER_MODELS,
     defaultModel: options.defaultModel ?? DEFAULT_MODEL,
     send: (input) => {
       const controller = new AbortController();

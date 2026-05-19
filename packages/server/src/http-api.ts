@@ -1,16 +1,14 @@
 import { HttpApiBuilder } from "@effect/platform";
 import { Effect, Layer } from "effect";
 import {
+  SCHEMA_IDE_OPENROUTER_MODELS,
   SchemaIdeHttpApi,
   type SchemaIdeModel,
   type SchemaIdeModelsResponse,
 } from "@schema-ide/protocol";
 import { OpenRouterClient } from "./openrouter-client";
 
-export const DEFAULT_SCHEMA_IDE_MODELS: readonly SchemaIdeModel[] = [
-  { id: "anthropic/claude-sonnet-4.5", label: "Claude Sonnet" },
-  { id: "openai/gpt-5.1", label: "GPT 5.1" },
-];
+export const DEFAULT_SCHEMA_IDE_MODELS: readonly SchemaIdeModel[] = SCHEMA_IDE_OPENROUTER_MODELS;
 
 export interface SchemaIdeServerOptions {
   readonly models?: readonly SchemaIdeModel[] | undefined;
