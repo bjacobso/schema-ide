@@ -304,6 +304,7 @@ class StructWorkspaceSchema<Fields extends FieldShape> implements WorkspaceSchem
 
     for (const file of tree.files) {
       if (!usedPaths.has(file.path)) {
+        if (isWorkspaceSidecarPath(file.path)) continue;
         diagnostics.push({
           path: file.path,
           severity: "warning",
@@ -646,6 +647,10 @@ function matchGlob(pattern: string, path: string): boolean {
     .join("[^/]*");
 
   return new RegExp(`^${escaped}$`).test(path);
+}
+
+function isWorkspaceSidecarPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".pdf");
 }
 
 function crossFileDiagnostic(
