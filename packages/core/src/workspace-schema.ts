@@ -650,6 +650,8 @@ function matchGlob(pattern: string, path: string): boolean {
 }
 
 function isWorkspaceSidecarPath(path: string): boolean {
+  // Sidecar files are available to host/tooling workflows but are not decoded
+  // as JSON/YAML schema documents by workspace routes.
   return path.toLowerCase().endsWith(".pdf");
 }
 
