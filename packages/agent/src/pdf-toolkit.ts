@@ -21,11 +21,7 @@ import {
   PdfUpdateFormAnnotationsParameters,
   PdfUpdateFormAnnotationsSuccess,
 } from "./pdf-schemas";
-import {
-  SchemaIdeWorkspace,
-  toToolFailure,
-  toolFailure,
-} from "./schema-ide-workspace";
+import { SchemaIdeWorkspace, toToolFailure, toolFailure } from "./schema-ide-workspace";
 
 export const PdfInspectTool = Tool.make("pdf_inspect", {
   description: "Read a PDF file and return page, form field, and coordinate metadata.",
@@ -133,9 +129,7 @@ function inspectPdfFileEffect(content: string) {
   });
 }
 
-function updatePdfFormAnnotationsEffect(
-  options: Parameters<typeof updatePdfFormAnnotations>[0],
-) {
+function updatePdfFormAnnotationsEffect(options: Parameters<typeof updatePdfFormAnnotations>[0]) {
   return Effect.tryPromise({
     try: () => updatePdfFormAnnotations(options),
     catch: toToolFailure,
@@ -300,7 +294,9 @@ async function updatePdfFormAnnotations({
       }
 
       const field =
-        annotation.type === "checkbox" ? form.createCheckBox(fieldName) : form.createTextField(fieldName);
+        annotation.type === "checkbox"
+          ? form.createCheckBox(fieldName)
+          : form.createTextField(fieldName);
       if (annotation.required) field.enableRequired();
 
       if (field instanceof PDFCheckBox) {
@@ -327,9 +323,7 @@ async function updatePdfFormAnnotations({
   };
 }
 
-function getPdfFieldWidgets(
-  field: PDFField,
-): readonly {
+function getPdfFieldWidgets(field: PDFField): readonly {
   getRectangle: () => { x: number; y: number; width: number; height: number };
   P: () => unknown;
 }[] {

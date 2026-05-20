@@ -1,11 +1,7 @@
 import { Effect, Schema } from "effect";
 import { Tool, Toolkit } from "effect/unstable/ai";
 import { ToolFailure, ValidationSummary } from "./common-toolkit-schemas";
-import {
-  FileEdit,
-  MultiEditResult,
-  MutationResult,
-} from "./workspace-schemas";
+import { FileEdit, MultiEditResult, MutationResult } from "./workspace-schemas";
 import { SchemaIdeWorkspace, toolFailure } from "./schema-ide-workspace";
 
 export const ListFilesTool = Tool.make("list_files", {
@@ -231,9 +227,7 @@ export const BaseWorkspaceToolkitLayer = BaseWorkspaceToolkit.toLayer(
           routeMatches: Array.from(reflection.routeMatches),
         };
       }),
-      get_json_schema: Effect.fn("BaseWorkspaceToolkit.get_json_schema")(function* ({
-        schemaId,
-      }) {
+      get_json_schema: Effect.fn("BaseWorkspaceToolkit.get_json_schema")(function* ({ schemaId }) {
         return { schema: yield* workspace.getJsonSchema(schemaId ?? null) };
       }),
       get_diagnostics: Effect.fn("BaseWorkspaceToolkit.get_diagnostics")(function* () {
@@ -243,17 +237,11 @@ export const BaseWorkspaceToolkitLayer = BaseWorkspaceToolkit.toLayer(
           validation: reflection.validationSummary,
         };
       }),
-      apply_edits: Effect.fn("BaseWorkspaceToolkit.apply_edits")(function* ({
-        edits,
-        validate,
-      }) {
+      apply_edits: Effect.fn("BaseWorkspaceToolkit.apply_edits")(function* ({ edits, validate }) {
         const result = yield* workspace.applyEdits(edits, { validate });
         return { success: true, ...result };
       }),
-      propose_patch: Effect.fn("BaseWorkspaceToolkit.propose_patch")(function* ({
-        label,
-        edits,
-      }) {
+      propose_patch: Effect.fn("BaseWorkspaceToolkit.propose_patch")(function* ({ label, edits }) {
         const proposal = yield* workspace.proposePatch(label, edits);
         return {
           id: proposal.id,

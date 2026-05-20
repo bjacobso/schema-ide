@@ -47,11 +47,7 @@ export interface SchemaIdeToolExecution {
   readonly isError: boolean;
 }
 
-export const SchemaIdeToolkit = Toolkit.merge(
-  BaseWorkspaceToolkit,
-  JsonToolkit,
-  PdfToolkit,
-);
+export const SchemaIdeToolkit = Toolkit.merge(BaseWorkspaceToolkit, JsonToolkit, PdfToolkit);
 
 export const SchemaIdeToolkitLayer = Layer.mergeAll(
   BaseWorkspaceToolkitLayer,
@@ -151,7 +147,10 @@ export async function executeSchemaIdeToolCall(
     const output = await Effect.runPromise(
       Effect.gen(function* () {
         const toolkit = yield* SchemaIdeToolkit;
-        const stream = yield* toolkit.handle(name as keyof typeof SchemaIdeToolkit.tools, decoded.args);
+        const stream = yield* toolkit.handle(
+          name as keyof typeof SchemaIdeToolkit.tools,
+          decoded.args,
+        );
         const results = Array.from(yield* Stream.runCollect(stream));
         return (
           results.findLast((result) => !result.preliminary) ??
@@ -161,9 +160,7 @@ export async function executeSchemaIdeToolCall(
           }
         );
       }).pipe(
-        Effect.provide(
-          SchemaIdeToolkitLayer.pipe(Layer.provide(SchemaIdeWorkspaceLayer(tools))),
-        ),
+        Effect.provide(SchemaIdeToolkitLayer.pipe(Layer.provide(SchemaIdeWorkspaceLayer(tools)))),
       ),
     );
 

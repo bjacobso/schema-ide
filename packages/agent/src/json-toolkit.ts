@@ -66,10 +66,7 @@ function applyJsonPatch(input: unknown, patch: readonly JsonPatchOperationInput[
   return document;
 }
 
-function applyJsonPatchOperation(
-  document: unknown,
-  operation: JsonPatchOperationInput,
-): unknown {
+function applyJsonPatchOperation(document: unknown, operation: JsonPatchOperationInput): unknown {
   const tokens = parseJsonPointer(operation.path);
   if (!tokens.length) {
     if (operation.op === "remove") return undefined;
@@ -87,7 +84,8 @@ function applyJsonPatchOperation(
   }
 
   if (operation.op === "remove") {
-    if (!Object.hasOwn(parent, key)) throw new Error(`Patch path does not exist: ${operation.path}`);
+    if (!Object.hasOwn(parent, key))
+      throw new Error(`Patch path does not exist: ${operation.path}`);
     delete parent[key];
     return document;
   }

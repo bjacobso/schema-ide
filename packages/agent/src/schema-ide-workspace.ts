@@ -1,10 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 import type { SchemaIdeReflection, SourceFile } from "@schema-ide/core";
-import type {
-  SchemaIdeFileEdit,
-  SchemaIdePatchProposal,
-  SchemaIdeHostRuntime,
-} from "./types";
+import type { SchemaIdeFileEdit, SchemaIdePatchProposal, SchemaIdeHostRuntime } from "./types";
 import type { SchemaIdeToolFailure } from "./common-toolkit-schemas";
 
 export interface SchemaIdeWorkspaceService {

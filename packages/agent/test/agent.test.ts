@@ -421,7 +421,9 @@ describe("schema-ide-agent", () => {
       }),
     );
     expect(invalidPatch.isError).toBe(true);
-    expect(invalidPatch.result).toMatchObject({ error: expect.stringContaining("Invalid arguments") });
+    expect(invalidPatch.result).toMatchObject({
+      error: expect.stringContaining("Invalid arguments"),
+    });
   });
 
   it("pdf_inspect returns page metadata for a generated PDF", async () => {
@@ -631,9 +633,7 @@ async function runToolkitTool(
       if (!final) throw new Error(`No toolkit result for ${name}`);
       return final;
     }).pipe(
-      Effect.provide(
-        SchemaIdeToolkitLayer.pipe(Layer.provide(SchemaIdeWorkspaceLayer(runtime))),
-      ),
+      Effect.provide(SchemaIdeToolkitLayer.pipe(Layer.provide(SchemaIdeWorkspaceLayer(runtime)))),
     ),
   );
 }

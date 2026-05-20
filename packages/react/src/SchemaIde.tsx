@@ -841,11 +841,7 @@ function PdfFileViewer({ file }: { readonly file: SourceFile }) {
 
   return (
     <div className="min-h-0 flex-1 bg-muted/20">
-      <iframe
-        title={file.path}
-        src={dataUrl}
-        className="h-full w-full border-0 bg-background"
-      />
+      <iframe title={file.path} src={dataUrl} className="h-full w-full border-0 bg-background" />
     </div>
   );
 }
