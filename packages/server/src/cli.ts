@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeFileSystem, NodeRuntime } from "@effect/platform-node";
-import { Config, ConfigProvider, Effect, Option } from "effect";
+import { Config, ConfigProvider, Effect, FileSystem, Option } from "effect";
 import { runSchemaIdeHttpServer } from "./node";
 
 const repoEnvPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env");
@@ -20,7 +19,8 @@ const ServerConfig = Config.all({
 });
 
 const loadConfig = Effect.gen(function* () {
-  const hasRepoEnv = yield* Effect.sync(() => existsSync(repoEnvPath));
+  const fs = yield* FileSystem.FileSystem;
+  const hasRepoEnv = yield* fs.exists(repoEnvPath);
 
   if (!hasRepoEnv) {
     return yield* ServerConfig;
@@ -32,9 +32,8 @@ const loadConfig = Effect.gen(function* () {
         asPrimary: true,
       }),
     ),
-    Effect.provide(NodeFileSystem.layer),
   );
-});
+}).pipe(Effect.provide(NodeFileSystem.layer));
 
 const program = Effect.scoped(
   Effect.gen(function* () {
