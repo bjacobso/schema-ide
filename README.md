@@ -167,7 +167,7 @@ Run the first-party Onboarded config CLI by building its package and invoking
 the embedded command:
 
 ```bash
-pnpm --dir packages/onboarded-config build
+pnpm turbo run build --filter @schema-ide/onboarded-config
 node packages/onboarded-config/dist/cli.js validate \
   --dir packages/onboarded-config/workspaces/onboarded-account-yaml/files \
   --json
@@ -176,7 +176,7 @@ node packages/onboarded-config/dist/cli.js validate \
 To smoke-test the consumer-style bundle:
 
 ```bash
-pnpm --dir packages/onboarded-config build:bundle
+pnpm turbo run build:bundle --filter @schema-ide/onboarded-config
 node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
   --dir packages/onboarded-config/workspaces/onboarded-account-yaml/files \
   --json

@@ -61,7 +61,7 @@ diagnostics to display.
 The Onboarded workspace has its own package-local CLI and bundle script:
 
 ```bash
-pnpm --dir packages/onboarded-config build:bundle
+pnpm turbo run build:bundle --filter @schema-ide/onboarded-config
 node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
   --dir packages/onboarded-config/workspaces/onboarded-account-yaml/files \
   --json
@@ -72,7 +72,7 @@ node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
 Build an example workspace schema into a domain-specific CLI wrapper:
 
 ```bash
-pnpm --dir packages/examples build:sea -- --example workflow-json --name workflow
+pnpm turbo run build:sea --filter @schema-ide/examples -- --example workflow-json --name workflow
 ```
 
 The script generates a small CLI entry that embeds the selected example
@@ -84,7 +84,7 @@ to skip that step.
 Use `--bundle-only` on Node versions that do not support `--build-sea` yet:
 
 ```bash
-pnpm --dir packages/examples build:sea -- --example workflow-json --bundle-only
+pnpm turbo run build:sea --filter @schema-ide/examples -- --example workflow-json --bundle-only
 node packages/examples/dist/sea/workflow-json/bundle/entry.cjs validate \
   --dir packages/examples/workspaces/workflow-json/files
 ```
@@ -92,7 +92,7 @@ node packages/examples/dist/sea/workflow-json/bundle/entry.cjs validate \
 Available local examples:
 
 ```bash
-pnpm --dir packages/examples build:sea -- --list
+pnpm turbo run build:sea --filter @schema-ide/examples -- --list
 ```
 
 The generated binary uses the same commands as `schema-ide`, but the schema is

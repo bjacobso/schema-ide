@@ -15,11 +15,8 @@
   "scripts": {
     "generate": "node scripts/generate-examples.mjs",
     "build:sea": "node scripts/build-example-cli-sea.mjs",
-    "prebuild": "pnpm run generate",
     "build": "tsdown",
-    "pretest": "pnpm run generate",
     "test": "vitest --run",
-    "pretypecheck": "pnpm run generate",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

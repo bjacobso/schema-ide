@@ -5,13 +5,28 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "build:bundle": {
+      "dependsOn": ["build"],
+      "outputs": ["dist/bundle/**"]
+    },
+    "build:sea": {
+      "dependsOn": ["build"],
+      "outputs": ["dist/sea/**"]
+    },
+    "generate": {
+      "outputs": ["src/generated/**"]
+    },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "outputs": []
+    },
+    "@schema-ide/examples#build": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["dist/**"]
     },
     "clean": {
       "cache": false
