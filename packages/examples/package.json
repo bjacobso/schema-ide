@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@schema-ide/core": "workspace:*",
-    "@schema-ide/schema-algebra": "workspace:*",
+    "@schema-ide/onboarded-config": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

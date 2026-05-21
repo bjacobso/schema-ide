@@ -48,6 +48,7 @@ The code is split into extractable workspace packages:
 - `@schema-ide/server` — standalone Effect HTTP server for the OpenRouter proxy.
 - `@schema-ide/cli` — local filesystem CLI for validating consumer workspace schemas and printing diagnostics/routes/JSON Schema.
 - `@schema-ide/ui` — local UI primitives used by the React package.
+- `@schema-ide/onboarded-config` — first-party Onboarded account configuration schema, sample workspace, and embedded CLI bundle.
 - `@schema-ide/examples` — generated JS examples backed by neutral prompt eval, survey, and workflow files on disk.
 
 ### Who this is for
