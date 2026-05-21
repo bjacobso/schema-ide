@@ -25,7 +25,7 @@ git submodule update --init --recursive
 if ! command -v pnpm >/dev/null 2>&1; then
   if command -v corepack >/dev/null 2>&1; then
     corepack enable
-    corepack prepare pnpm@10.20.0 --activate
+    corepack prepare pnpm@11.1.3 --activate
   else
     echo "pnpm is required but was not found, and corepack is unavailable." >&2
     exit 1
