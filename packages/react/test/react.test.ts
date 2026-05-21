@@ -333,6 +333,37 @@ describe("schema-ide-react", () => {
     }
   });
 
+  it("workspace store follows externally changed files", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [
+        { path: "first.json", content: '{"id":"first"}\n' },
+        { path: "second.json", content: '{"id":"second"}\n' },
+      ],
+    });
+    const store = createSchemaIdeWorkspaceStore(client);
+
+    try {
+      store.start();
+      await Effect.runPromise(store.refreshSnapshot);
+      store.setActiveFile("first.json");
+
+      await Effect.runPromise(
+        client.applyChange({
+          type: "writeFile",
+          path: "second.json",
+          content: '{"id":"second-updated"}\n',
+        }),
+      );
+      await waitUntil(() => store.activeFileRef.value === "second.json");
+
+      expect(store.selectedFileRef.value?.content).toBe('{"id":"second-updated"}\n');
+    } finally {
+      store.stop();
+    }
+  });
+
   it("workspace tool runtime applies agent writes through the shared store/client path", async () => {
     const DocumentSchema = Schema.Struct({
       id: Schema.String,
@@ -366,10 +397,14 @@ describe("schema-ide-react", () => {
 
       expect(result.changedPaths).toEqual(["document.json", "extra.json"]);
       expect(result.validation.valid).toBe(true);
+      expect(store.activeFileRef.value).toBe("document.json");
       expect(runtime.listFiles()).toEqual(["document.json", "extra.json"]);
       expect(runtime.readFile("document.json")?.content).toBe(
         '{"id":"agent","title":"From agent"}\n',
       );
+
+      await runtime.createFile({ path: "created.json", content: '{"id":"created"}\n' });
+      expect(store.activeFileRef.value).toBe("created.json");
     } finally {
       store.stop();
     }
