@@ -2,7 +2,17 @@ import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { stringifyDocument } from "@schema-ide/core";
 import type { FormField, OnboardedFormConfig } from "@schema-ide/onboarded-config";
 import type { SchemaIdePreviewComponentProps } from "@schema-ide/react";
-import { Badge, Button, ScrollArea, Textarea } from "@schema-ide/ui";
+import {
+  Badge,
+  Button,
+  ScrollArea,
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Textarea,
+} from "@schema-ide/ui";
 
 type FormPage = OnboardedFormConfig["version"]["pages"][number];
 
@@ -554,19 +564,21 @@ function BuilderSheet({
   readonly onClose: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-20 flex justify-end bg-background/40">
-      <div className="h-full w-full max-w-md border-l bg-background shadow-xl">
-        <div className="flex h-12 items-center gap-3 border-b px-4">
-          <div className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</div>
+    <Sheet open onOpenChange={(open) => (open ? undefined : onClose())}>
+      <SheetContent aria-label={title}>
+        <SheetHeader className="h-12 flex-row items-center gap-3 px-4 py-0">
+          <SheetTitle className="min-w-0 flex-1 truncate">{title}</SheetTitle>
           <Button size="sm" variant="ghost" onClick={onClose}>
             Close
           </Button>
-        </div>
-        <ScrollArea className="h-[calc(100%-3rem)]">
-          <div className="p-4">{children}</div>
-        </ScrollArea>
-      </div>
-    </div>
+        </SheetHeader>
+        <SheetBody>
+          <ScrollArea className="h-full">
+            <div className="p-4">{children}</div>
+          </ScrollArea>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 

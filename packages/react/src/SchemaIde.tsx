@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   FileCode2,
   FilePlus2,
   FolderTree,
@@ -106,6 +107,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   const [debugTab, setDebugTab] = useState<
     "diagnostics" | "schema" | "value" | "routes" | "history" | "context"
   >("diagnostics");
+  const [debugExpanded, setDebugExpanded] = useState(false);
   const [editorMode, setEditorMode] = useState<SchemaIdeEditorMode>(defaultMode);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const [pendingProposal, setPendingProposal] = useState<SchemaIdePatchProposal | null>(null);
@@ -815,7 +817,9 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
             {showDebug ? (
               <SchemaDebugPanel
                 tab={debugTab}
+                expanded={debugExpanded}
                 onTabChange={setDebugTab}
+                onExpandedChange={setDebugExpanded}
                 reflection={reflection}
                 workspace={workspace}
               />
@@ -951,14 +955,18 @@ function PatchProposalPanel({
 
 function SchemaDebugPanel({
   tab,
+  expanded,
   onTabChange,
+  onExpandedChange,
   reflection,
   workspace,
 }: {
   readonly tab: "diagnostics" | "schema" | "value" | "routes" | "history" | "context";
+  readonly expanded: boolean;
   readonly onTabChange: (
     tab: "diagnostics" | "schema" | "value" | "routes" | "history" | "context",
   ) => void;
+  readonly onExpandedChange: (expanded: boolean) => void;
   readonly reflection: ReturnType<typeof createReflection>;
   readonly workspace: VersionedWorkspaceState;
 }) {
@@ -998,24 +1006,41 @@ function SchemaDebugPanel({
               : reflection;
 
   return (
-    <div className="h-56 shrink-0 border-t">
-      <div className="flex h-9 items-center gap-1 border-b px-2">
-        <Bug className="mr-1 size-4 text-muted-foreground" />
-        {tabs.map(([id, label]) => (
-          <Button
-            key={id}
-            size="sm"
-            variant={tab === id ? "secondary" : "ghost"}
-            className="h-7 px-2 text-xs"
-            onClick={() => onTabChange(id)}
-          >
-            {label}
-          </Button>
-        ))}
+    <div className="shrink-0 border-t">
+      <div className="flex h-9 items-center gap-1 px-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs"
+          onClick={() => onExpandedChange(!expanded)}
+        >
+          <Bug className="size-3.5" />
+          Debug
+          {expanded ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+        </Button>
+        {expanded
+          ? tabs.map(([id, label]) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={tab === id ? "secondary" : "ghost"}
+                className="h-7 px-2 text-xs"
+                onClick={() => onTabChange(id)}
+              >
+                {label}
+              </Button>
+            ))
+          : null}
       </div>
-      <ScrollArea className="h-[calc(100%-2.25rem)]">
-        <pre className="whitespace-pre-wrap p-3 text-xs">{JSON.stringify(content, null, 2)}</pre>
-      </ScrollArea>
+      {expanded ? (
+        <div className="h-56 border-t">
+          <ScrollArea className="h-full">
+            <pre className="whitespace-pre-wrap p-3 text-xs">
+              {JSON.stringify(content, null, 2)}
+            </pre>
+          </ScrollArea>
+        </div>
+      ) : null}
     </div>
   );
 }

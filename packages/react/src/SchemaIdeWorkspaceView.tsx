@@ -1,5 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { AlertTriangle, FileCode2, FilePlus2, FolderTree, Save, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Bug,
+  ChevronDown,
+  ChevronUp,
+  FileCode2,
+  FilePlus2,
+  FolderTree,
+  Save,
+  Trash2,
+} from "lucide-react";
 import type { SchemaIdeChatAdapter } from "@schema-ide/agent";
 import type {
   SchemaIdeDocumentFormat,
@@ -41,6 +51,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
 }: SchemaIdeWorkspaceViewProps<Routes>) {
   const [editorMode, setEditorMode] = useState<SchemaIdeEditorMode>(defaultMode);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
+  const [debugExpanded, setDebugExpanded] = useState(false);
   const {
     store,
     state,
@@ -268,23 +279,43 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
           )}
 
           {showDebug ? (
-            <div className="h-56 shrink-0 border-t">
-              <ScrollArea className="h-full">
-                <pre className="whitespace-pre-wrap p-3 text-xs">
-                  {JSON.stringify(
-                    {
-                      revision: snapshot.revision,
-                      capabilities,
-                      diagnostics: reflection.diagnostics,
-                      routeMatches: reflection.routeMatches,
-                      schemas: reflection.schemas,
-                      conflicts: state.conflicts,
-                    },
-                    null,
-                    2,
+            <div className="shrink-0 border-t">
+              <div className="flex h-9 items-center gap-2 px-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-xs"
+                  onClick={() => setDebugExpanded((expanded) => !expanded)}
+                >
+                  <Bug className="size-3.5" />
+                  Debug
+                  {debugExpanded ? (
+                    <ChevronDown className="size-3.5" />
+                  ) : (
+                    <ChevronUp className="size-3.5" />
                   )}
-                </pre>
-              </ScrollArea>
+                </Button>
+              </div>
+              {debugExpanded ? (
+                <div className="h-56 border-t">
+                  <ScrollArea className="h-full">
+                    <pre className="whitespace-pre-wrap p-3 text-xs">
+                      {JSON.stringify(
+                        {
+                          revision: snapshot.revision,
+                          capabilities,
+                          diagnostics: reflection.diagnostics,
+                          routeMatches: reflection.routeMatches,
+                          schemas: reflection.schemas,
+                          conflicts: state.conflicts,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </ScrollArea>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
