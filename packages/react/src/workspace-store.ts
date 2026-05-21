@@ -329,6 +329,11 @@ export function createSchemaIdeWorkspaceStore(
       if (readOnlyRef.value) return;
       const selectedFile = selectedFileRef.value;
       if (!selectedFile) return;
+      const selectedCommittedFile = selectedCommittedFileRef.value;
+      if (selectedCommittedFile?.content === content) {
+        draftsRef.update((drafts) => omitKey(drafts, selectedFile.path));
+        return;
+      }
       draftsRef.update((drafts) => ({ ...drafts, [selectedFile.path]: content }));
     },
     refreshSnapshot,

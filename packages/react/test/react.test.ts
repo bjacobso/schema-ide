@@ -235,6 +235,39 @@ describe("schema-ide-react", () => {
     }
   });
 
+  it("workspace store does not mark committed content dirty", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [
+        { path: "first.json", content: '{"id":"first"}\n' },
+        { path: "second.json", content: '{"id":"second"}\n' },
+      ],
+    });
+    const store = createSchemaIdeWorkspaceStore(client);
+
+    try {
+      store.start();
+      await Effect.runPromise(store.refreshSnapshot);
+
+      store.setActiveFile("second.json");
+      store.updateActiveFile('{"id":"second"}\n');
+
+      expect(store.stateRef.value.drafts["second.json"]).toBeUndefined();
+      expect(store.selectedIsDirtyRef.value).toBe(false);
+
+      store.updateActiveFile('{"id":"changed"}\n');
+      expect(store.stateRef.value.drafts["second.json"]).toBe('{"id":"changed"}\n');
+      expect(store.selectedIsDirtyRef.value).toBe(true);
+
+      store.updateActiveFile('{"id":"second"}\n');
+      expect(store.stateRef.value.drafts["second.json"]).toBeUndefined();
+      expect(store.selectedIsDirtyRef.value).toBe(false);
+    } finally {
+      store.stop();
+    }
+  });
+
   it("workspace store applies external updates and marks dirty draft conflicts", async () => {
     const DocumentSchema = Schema.Struct({ id: Schema.String });
     const client = createMemoryWorkspaceClient({
