@@ -54,6 +54,7 @@ import {
 } from "./preview";
 import { SchemaCodeMirrorEditor } from "./SchemaCodeMirrorEditor";
 import { SchemaIdeFileTree } from "./SchemaIdeFileTree";
+import { isPdfPath, SchemaIdePdfFileViewer } from "./SchemaIdePdfFileViewer";
 import { SchemaIdePreviewView } from "./SchemaIdePreviewView";
 
 export interface SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
@@ -749,7 +750,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
             </div>
 
             {selectedFile && selectedIsPdf ? (
-              <PdfFileViewer file={selectedFile} />
+              <SchemaIdePdfFileViewer file={selectedFile} />
             ) : editorMode === "preview" && selectedFile ? (
               <SchemaIdePreviewView
                 file={selectedFile}
@@ -800,44 +801,6 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
       </div>
     </div>
   );
-}
-
-function PdfFileViewer({ file }: { readonly file: SourceFile }) {
-  const dataUrl = useMemo(() => pdfContentToDataUrl(file.content), [file.content]);
-
-  if (!dataUrl) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6">
-        <div className="max-w-sm rounded-md border bg-background p-4 text-sm text-muted-foreground">
-          Unable to display PDF content.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-0 flex-1 bg-muted/20">
-      <iframe title={file.path} src={dataUrl} className="h-full w-full border-0 bg-background" />
-    </div>
-  );
-}
-
-function isPdfPath(path: string | null | undefined): boolean {
-  return path?.toLowerCase().endsWith(".pdf") ?? false;
-}
-
-function pdfContentToDataUrl(content: string): string | null {
-  const trimmed = content.trim();
-  if (!trimmed) return null;
-
-  if (/^data:application\/pdf[^,]*;base64,/i.test(trimmed)) return trimmed;
-
-  if (trimmed.startsWith("%PDF")) {
-    if (typeof globalThis.btoa !== "function") return null;
-    return `data:application/pdf;base64,${globalThis.btoa(trimmed)}`;
-  }
-
-  return `data:application/pdf;base64,${trimmed.replace(/\s+/g, "")}`;
 }
 
 function FormatSelect({

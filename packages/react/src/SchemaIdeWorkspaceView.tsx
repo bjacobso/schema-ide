@@ -28,6 +28,7 @@ import {
 import { SchemaIdeChatPanel } from "./SchemaIdeChatPanel";
 import { SchemaCodeMirrorEditor } from "./SchemaCodeMirrorEditor";
 import { SchemaIdeFileTree } from "./SchemaIdeFileTree";
+import { isPdfPath, SchemaIdePdfFileViewer } from "./SchemaIdePdfFileViewer";
 import { SchemaIdePreviewView } from "./SchemaIdePreviewView";
 import { useSchemaIdeWorkspaceStore } from "./workspace-store";
 import { createSchemaIdeWorkspaceToolRuntime } from "./workspace-tool-runtime";
@@ -73,6 +74,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
   const toolRuntime = useMemo(() => createSchemaIdeWorkspaceToolRuntime(store), [store]);
   const showChat = Boolean(chat && capabilities?.agent.enabled);
   const selectedFormat = formatForPath(selectedFile?.path);
+  const selectedIsPdf = isPdfPath(selectedFile?.path);
   const previewResolution = useMemo(
     () =>
       reflection
@@ -164,26 +166,32 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
             <div className="min-w-0 truncate font-mono text-xs">
               {selectedFile?.path ?? "No file"}
             </div>
-            <div className="flex rounded-md border p-0.5">
-              <Button
-                size="sm"
-                variant={editorMode === "code" ? "secondary" : "ghost"}
-                className="h-6 px-2 text-[11px]"
-                onClick={() => setEditorMode("code")}
-              >
-                Code
-              </Button>
-              <Button
-                size="sm"
-                variant={editorMode === "preview" ? "secondary" : "ghost"}
-                className="h-6 px-2 text-[11px]"
-                onClick={() => setEditorMode("preview")}
-                disabled={!selectedFile}
-              >
-                Preview
-              </Button>
-            </div>
-            {previewResolution && previewResolution.previews.length > 1 ? (
+            {selectedIsPdf ? (
+              <Badge variant="outline" className="ml-auto">
+                PDF
+              </Badge>
+            ) : (
+              <div className="flex rounded-md border p-0.5">
+                <Button
+                  size="sm"
+                  variant={editorMode === "code" ? "secondary" : "ghost"}
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => setEditorMode("code")}
+                >
+                  Code
+                </Button>
+                <Button
+                  size="sm"
+                  variant={editorMode === "preview" ? "secondary" : "ghost"}
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => setEditorMode("preview")}
+                  disabled={!selectedFile}
+                >
+                  Preview
+                </Button>
+              </div>
+            )}
+            {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
               <select
                 value={previewResolution.selected.id}
                 onChange={(event) => setSelectedPreviewId(event.target.value)}
@@ -198,15 +206,21 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               </select>
             ) : null}
             {selectedHasConflict ? (
-              <Badge variant="destructive" className="ml-auto text-[10px]">
+              <Badge
+                variant="destructive"
+                className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
+              >
                 External conflict
               </Badge>
             ) : selectedIsDirty ? (
-              <Badge variant="secondary" className="ml-auto text-[10px]">
+              <Badge
+                variant="secondary"
+                className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
+              >
                 Unsaved
               </Badge>
             ) : (
-              <span className="ml-auto" />
+              <span className={selectedIsPdf ? "" : "ml-auto"} />
             )}
             <Button
               size="icon-xs"
@@ -228,7 +242,9 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
             </Button>
           </div>
 
-          {editorMode === "preview" && selectedFile ? (
+          {selectedFile && selectedIsPdf ? (
+            <SchemaIdePdfFileViewer file={selectedFile} />
+          ) : editorMode === "preview" && selectedFile ? (
             <SchemaIdePreviewView
               file={selectedFile}
               files={files}

@@ -13,6 +13,7 @@ import {
   type SchemaIdePreviewRegistration,
   type SchemaIdePreviewRegistrationForRoutes,
 } from "../src";
+import { pdfContentToDataUrl } from "../src/SchemaIdePdfFileViewer";
 import {
   Workspace,
   type SchemaIdeInputSchema,
@@ -114,6 +115,19 @@ describe("schema-ide-react", () => {
       infos: 0,
     });
     expect(counts.has("")).toBe(false);
+  });
+
+  it("normalizes PDF content to a browser data URL", () => {
+    expect(pdfContentToDataUrl("JVBERi0xLjcKJSVFT0YK")).toBe(
+      "data:application/pdf;base64,JVBERi0xLjcKJSVFT0YK",
+    );
+    expect(pdfContentToDataUrl("data:application/pdf;base64,JVBERi0xLjcK")).toBe(
+      "data:application/pdf;base64,JVBERi0xLjcK",
+    );
+    expect(pdfContentToDataUrl("%PDF-1.7\n%%EOF\n")).toBe(
+      "data:application/pdf;base64,JVBERi0xLjcKJSVFT0Y=",
+    );
+    expect(pdfContentToDataUrl("")).toBeNull();
   });
 
   it("types preview registrations from workspace route ids", () => {

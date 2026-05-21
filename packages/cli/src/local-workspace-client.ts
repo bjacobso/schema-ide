@@ -191,7 +191,9 @@ function readSourceFilesEffect({
       if (info.type !== "File") continue;
       files.push({
         path: normalized,
-        content: yield* fs.readFileString(absolutePath),
+        content: isBinaryWorkspacePath(normalized)
+          ? Buffer.from(yield* fs.readFile(absolutePath)).toString("base64")
+          : yield* fs.readFileString(absolutePath),
       });
     }
     return files.sort((left, right) => left.path.localeCompare(right.path));
@@ -286,8 +288,22 @@ function writeWorkspaceFile(root: string, filePath: string, content: string) {
     const path = yield* Path.Path;
     const absolutePath = yield* resolveSafeWorkspacePathEffect(root, filePath);
     yield* fs.makeDirectory(path.dirname(absolutePath), { recursive: true });
-    yield* fs.writeFileString(absolutePath, content);
+    if (isBinaryWorkspacePath(filePath)) {
+      yield* fs.writeFile(absolutePath, decodeBinaryWorkspaceContent(content));
+    } else {
+      yield* fs.writeFileString(absolutePath, content);
+    }
   });
+}
+
+function isBinaryWorkspacePath(path: string): boolean {
+  return /\.(?:pdf|png|jpe?g|webp)$/i.test(path);
+}
+
+function decodeBinaryWorkspaceContent(content: string): Uint8Array {
+  const trimmed = content.trim();
+  const dataUrlMatch = trimmed.match(/^data:[^,]*;base64,([\s\S]*)$/i);
+  return Buffer.from((dataUrlMatch?.[1] ?? trimmed).replace(/\s+/g, ""), "base64");
 }
 
 export function resolveSafeWorkspacePath(root: string, filePath: string): string {
