@@ -182,6 +182,21 @@ node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
   --json
 ```
 
+The bundle also embeds the built playground UI, so it can serve the web app as a
+single Node entry without `apps/playground/dist` on disk:
+
+```bash
+node packages/onboarded-config/dist/bundle/onboarded-config.cjs web \
+  --dir packages/onboarded-config/workspaces/onboarded-account-yaml/files
+```
+
+Build a single Node SEA binary from the same bundled entry with:
+
+```bash
+pnpm turbo run build:sea --filter @schema-ide/onboarded-config -- \
+  --out packages/onboarded-config/dist/sea/onboarded-config
+```
+
 Run the Onboarded workspace in the local web UI with:
 
 ```bash

@@ -15,7 +15,11 @@ import {
   type SourceFile,
   type WorkspaceRouteMap,
 } from "@schema-ide/core";
-import { runSchemaIdeHttpServer, type SchemaIdeNodeServerHandle } from "@schema-ide/server";
+import {
+  runSchemaIdeHttpServer,
+  type SchemaIdeNodeServerHandle,
+  type SchemaIdeStaticAssets,
+} from "@schema-ide/server";
 import {
   createLocalFilesystemWorkspaceClient,
   resolveSafeWorkspacePath,
@@ -86,6 +90,7 @@ export interface SchemaIdeCliOptions<
   readonly name?: string | undefined;
   readonly workspace?: SchemaIdeCliWorkspace<A, Routes> | undefined;
   readonly schemaPath?: string | undefined;
+  readonly staticAssets?: SchemaIdeStaticAssets | undefined;
 }
 
 export interface EmbeddedSchemaIdeCliOptions<
@@ -94,6 +99,7 @@ export interface EmbeddedSchemaIdeCliOptions<
 > {
   readonly name?: string | undefined;
   readonly workspace: SchemaIdeCliWorkspace<A, Routes>;
+  readonly staticAssets?: SchemaIdeStaticAssets | undefined;
 }
 
 export interface SchemaIdeCliResult {
@@ -123,6 +129,7 @@ export interface SchemaIdeServeOptions {
   readonly directory: string;
   readonly port?: number | undefined;
   readonly staticDir?: string | undefined;
+  readonly staticAssets?: SchemaIdeStaticAssets | undefined;
   readonly openRouterApiKey?: string | undefined;
   readonly workspaceRpcProtocol?: "http" | "websocket" | undefined;
 }
@@ -281,7 +288,7 @@ async function runSchemaIdeCliMain(
       process.exitCode = 2;
       return;
     }
-    await runServeMain(workspace, options);
+    await runServeMain(workspace, options, cliOptions);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
@@ -309,7 +316,7 @@ async function runEmbeddedSchemaIdeCliMain(
   }
 
   try {
-    await runServeMain(cliOptions.workspace, options);
+    await runServeMain(cliOptions.workspace, options, cliOptions);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
@@ -319,16 +326,19 @@ async function runEmbeddedSchemaIdeCliMain(
 async function runServeMain(
   workspace: SchemaIdeCliWorkspace,
   options: ParsedCliOptions,
+  cliOptions: Pick<SchemaIdeCliOptions, "staticAssets">,
 ): Promise<void> {
   const staticDir = options.staticDir ?? resolveDefaultStaticDir();
+  const staticAssets = staticDir ? undefined : cliOptions.staticAssets;
   const server = await serveSchemaIdeWorkspace({
     workspace,
     directory: options.directory,
     port: options.port ?? 4318,
     staticDir,
+    staticAssets,
   });
   process.stdout.write(`Schema IDE listening on http://127.0.0.1:${server.port}/\n`);
-  if (!staticDir && !process.env["SCHEMA_IDE_STATIC_DIR"]) {
+  if (!staticDir && !staticAssets && !process.env["SCHEMA_IDE_STATIC_DIR"]) {
     process.stdout.write(
       "No Schema IDE UI bundle was found. Build the playground or pass --static-dir to serve /.\n",
     );
@@ -378,6 +388,7 @@ export async function serveSchemaIdeWorkspace({
   directory,
   port = 4318,
   staticDir = process.env["SCHEMA_IDE_STATIC_DIR"],
+  staticAssets,
   openRouterApiKey = process.env["OPENROUTER_API_KEY"] ??
     process.env["SCHEMA_IDE_OPENROUTER_API_KEY"],
   workspaceRpcProtocol,
@@ -390,6 +401,7 @@ export async function serveSchemaIdeWorkspace({
   const server = await runSchemaIdeHttpServer({
     port,
     staticDir,
+    staticAssets: staticDir ? undefined : staticAssets,
     openRouterApiKey,
     workspace: workspaceService,
     workspaceRpcProtocol,
@@ -649,13 +661,23 @@ function isServeCommand(command: ParsedCliOptions["command"]): command is "serve
 }
 
 function resolveDefaultStaticDir(): string | undefined {
-  const moduleDir = dirname(fileURLToPath(import.meta.url));
   const candidates = [
     resolve(process.cwd(), "apps/playground/dist"),
-    resolve(moduleDir, "../../../apps/playground/dist"),
+    ...resolveModuleDefaultStaticDirCandidates(),
   ];
 
   return candidates.find((candidate) => existsSync(resolve(candidate, "index.html")));
+}
+
+function resolveModuleDefaultStaticDirCandidates(): readonly string[] {
+  if (!import.meta.url) return [];
+
+  try {
+    const moduleDir = dirname(fileURLToPath(import.meta.url));
+    return [resolve(moduleDir, "../../../apps/playground/dist")];
+  } catch {
+    return [];
+  }
 }
 
 function requireValue(args: readonly string[], index: number, name: string): string {

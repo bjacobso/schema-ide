@@ -28,6 +28,14 @@
       "dependsOn": ["^build", "generate"],
       "outputs": ["dist/**"]
     },
+    "@schema-ide/onboarded-config#build:bundle": {
+      "dependsOn": ["build", "schema-ide-playground#build"],
+      "outputs": ["dist/bundle/**", "dist/sea/onboarded-config/**"]
+    },
+    "@schema-ide/onboarded-config#build:sea": {
+      "dependsOn": ["build:bundle"],
+      "outputs": ["dist/sea/**"]
+    },
     "clean": {
       "cache": false
     }

@@ -5,7 +5,7 @@ First-party Onboarded account configuration workspace for Schema IDE.
 This package owns the Onboarded domain schemas, a YAML sample workspace, and an
 embedded `onboarded-config` CLI. It is intentionally packaged like a consumer of
 Schema IDE: the package imports `@schema-ide/cli`, embeds its workspace schema,
-and can bundle the result into a standalone Node entry.
+and can bundle the result with the web UI.
 
 ## Validate
 
@@ -27,8 +27,7 @@ schema-ide validate \
 
 ## Web UI
 
-Build the shared playground UI, then start the Onboarded CLI in local
-filesystem mode:
+Build the shared playground UI, then start the Onboarded CLI in local filesystem mode:
 
 ```bash
 pnpm playground:build
@@ -42,6 +41,10 @@ exists; pass `--static-dir <path>` to use another built UI bundle.
 
 ## Bundle
 
+`build:bundle` is wired through Turbo to build the package and the playground UI
+first. The resulting CommonJS entry embeds the Onboarded workspace schema and the
+web UI assets, so it can serve `/` without `apps/playground/dist` on disk.
+
 ```bash
 pnpm turbo run build:bundle --filter @schema-ide/onboarded-config
 node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
@@ -49,5 +52,16 @@ node packages/onboarded-config/dist/bundle/onboarded-config.cjs validate \
   --json
 ```
 
-The bundle embeds the Onboarded workspace schema, so consumers do not need to
-pass `--schema`.
+Run the bundled web UI with:
+
+```bash
+node packages/onboarded-config/dist/bundle/onboarded-config.cjs web \
+  --dir packages/onboarded-config/workspaces/onboarded-account-yaml/files
+```
+
+Build a Node SEA binary with Node 25.5.0 or newer:
+
+```bash
+pnpm turbo run build:sea --filter @schema-ide/onboarded-config -- \
+  --out packages/onboarded-config/dist/sea/onboarded-config
+```

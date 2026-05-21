@@ -27,7 +27,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "build:bundle": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/bundle/onboarded-config.cjs --log-level=warning --log-override:empty-import-meta=silent --log-override:require-resolve-not-external=silent",
+    "build:bundle": "node scripts/build-cli-bundle.mjs --bundle-only",
+    "build:sea": "node scripts/build-cli-bundle.mjs",
     "test": "vitest --run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
