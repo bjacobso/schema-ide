@@ -62,7 +62,6 @@ packages/schema-ide/
 ├── agent/        @schema-ide/agent
 ├── react/        @schema-ide/react
 ├── server/       @schema-ide/server
-├── ui/           @schema-ide/ui
 ├── examples/     @schema-ide/examples
 ├── playground/   package-local Vite app
 ├── README.md

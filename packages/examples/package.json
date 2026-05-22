@@ -21,6 +21,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@emotion/react": "catalog:",
+    "@emotion/styled": "catalog:",
+    "@mui/material": "catalog:",
     "@schema-ide/core": "workspace:*",
     "@schema-ide/onboarded-config": "workspace:*",
     "effect": "catalog:"

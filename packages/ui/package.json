@@ -3,30 +3,5 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./dist/index.js",
-      "default": "./src/index.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsdown",
-    "test": "vitest --run",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "devDependencies": {
-    "@effect/vitest": "catalog:",
-    "@types/react": "catalog:",
-    "react": "catalog:",
-    "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
-  },
-  "peerDependencies": {
-    "react": "^19.0.0"
-  }
+  "deprecated": "Deprecated: import MUI primitives directly from @mui/material instead."
 }

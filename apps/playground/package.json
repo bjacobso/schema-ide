@@ -5,20 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4318",
-    "build": "vite build"
+    "build": "vite build",
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots=all"
   },
   "dependencies": {
+    "@emotion/react": "catalog:",
+    "@emotion/styled": "catalog:",
     "@lezer/highlight": "^1.2.3",
+    "@mui/material": "catalog:",
     "@schema-ide/agent": "workspace:*",
     "@schema-ide/examples": "workspace:*",
     "@schema-ide/onboarded-config": "workspace:*",
     "@schema-ide/react": "workspace:*",
-    "@schema-ide/ui": "workspace:*",
     "lucide-react": "^0.555.0",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
