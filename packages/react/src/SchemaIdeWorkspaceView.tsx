@@ -1,5 +1,14 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { AlertTriangle, FileCode2, FilePlus2, FolderTree, Save, Trash2 } from "lucide-react";
+import {
+  Bug,
+  ChevronDown,
+  ChevronUp,
+  FileCode2,
+  FilePlus2,
+  FolderTree,
+  Save,
+  Trash2,
+} from "lucide-react";
 import type { SchemaIdeChatAdapter } from "@schema-ide/agent";
 import type {
   SchemaIdeDocumentFormat,
@@ -18,6 +27,8 @@ import {
 } from "./preview";
 import { SchemaIdeChatPanel } from "./SchemaIdeChatPanel";
 import { SchemaCodeMirrorEditor } from "./SchemaCodeMirrorEditor";
+import { SchemaIdeFileTree } from "./SchemaIdeFileTree";
+import { isPdfPath, SchemaIdePdfFileViewer } from "./SchemaIdePdfFileViewer";
 import { SchemaIdePreviewView } from "./SchemaIdePreviewView";
 import { useSchemaIdeWorkspaceStore } from "./workspace-store";
 import { createSchemaIdeWorkspaceToolRuntime } from "./workspace-tool-runtime";
@@ -41,6 +52,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
 }: SchemaIdeWorkspaceViewProps<Routes>) {
   const [editorMode, setEditorMode] = useState<SchemaIdeEditorMode>(defaultMode);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
+  const [debugExpanded, setDebugExpanded] = useState(false);
   const {
     store,
     state,
@@ -57,9 +69,12 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
     () => getSchemaIdeFileDiagnosticCounts(reflection?.diagnostics ?? []),
     [reflection?.diagnostics],
   );
+  const dirtyPaths = useMemo(() => new Set(Object.keys(state.drafts)), [state.drafts]);
+  const conflictPaths = useMemo(() => new Set(Object.keys(state.conflicts)), [state.conflicts]);
   const toolRuntime = useMemo(() => createSchemaIdeWorkspaceToolRuntime(store), [store]);
   const showChat = Boolean(chat && capabilities?.agent.enabled);
   const selectedFormat = formatForPath(selectedFile?.path);
+  const selectedIsPdf = isPdfPath(selectedFile?.path);
   const previewResolution = useMemo(
     () =>
       reflection
@@ -136,39 +151,14 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               <FilePlus2 className="size-3.5" />
             </Button>
           </div>
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="p-2">
-              {files.map((file) => {
-                const counts = fileDiagnosticCounts.get(file.path);
-                const issueCount = counts ? counts.errors || counts.warnings || counts.infos : 0;
-                const dirty = state.drafts[file.path] !== undefined;
-                const conflict = state.conflicts[file.path] !== undefined;
-                return (
-                  <button
-                    key={file.path}
-                    className={`mb-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs ${
-                      selectedFile?.path === file.path
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
-                    }`}
-                    onClick={() => store.setActiveFile(file.path)}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                    {conflict ? <AlertTriangle className="size-3.5 text-destructive" /> : null}
-                    {dirty ? <Badge className="h-4 px-1.5 text-[10px]">Dirty</Badge> : null}
-                    {issueCount ? (
-                      <Badge
-                        variant={counts?.errors ? "destructive" : "secondary"}
-                        className="h-4 min-w-4 px-1.5 text-[10px]"
-                      >
-                        {issueCount}
-                      </Badge>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+          <SchemaIdeFileTree
+            files={files}
+            activePath={selectedFile?.path}
+            diagnosticCounts={fileDiagnosticCounts}
+            dirtyPaths={dirtyPaths}
+            conflictPaths={conflictPaths}
+            onSelectFile={store.setActiveFile}
+          />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -176,26 +166,32 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
             <div className="min-w-0 truncate font-mono text-xs">
               {selectedFile?.path ?? "No file"}
             </div>
-            <div className="flex rounded-md border p-0.5">
-              <Button
-                size="sm"
-                variant={editorMode === "code" ? "secondary" : "ghost"}
-                className="h-6 px-2 text-[11px]"
-                onClick={() => setEditorMode("code")}
-              >
-                Code
-              </Button>
-              <Button
-                size="sm"
-                variant={editorMode === "preview" ? "secondary" : "ghost"}
-                className="h-6 px-2 text-[11px]"
-                onClick={() => setEditorMode("preview")}
-                disabled={!selectedFile}
-              >
-                Preview
-              </Button>
-            </div>
-            {previewResolution && previewResolution.previews.length > 1 ? (
+            {selectedIsPdf ? (
+              <Badge variant="outline" className="ml-auto">
+                PDF
+              </Badge>
+            ) : (
+              <div className="flex rounded-md border p-0.5">
+                <Button
+                  size="sm"
+                  variant={editorMode === "code" ? "secondary" : "ghost"}
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => setEditorMode("code")}
+                >
+                  Code
+                </Button>
+                <Button
+                  size="sm"
+                  variant={editorMode === "preview" ? "secondary" : "ghost"}
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => setEditorMode("preview")}
+                  disabled={!selectedFile}
+                >
+                  Preview
+                </Button>
+              </div>
+            )}
+            {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
               <select
                 value={previewResolution.selected.id}
                 onChange={(event) => setSelectedPreviewId(event.target.value)}
@@ -210,15 +206,21 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               </select>
             ) : null}
             {selectedHasConflict ? (
-              <Badge variant="destructive" className="ml-auto text-[10px]">
+              <Badge
+                variant="destructive"
+                className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
+              >
                 External conflict
               </Badge>
             ) : selectedIsDirty ? (
-              <Badge variant="secondary" className="ml-auto text-[10px]">
+              <Badge
+                variant="secondary"
+                className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
+              >
                 Unsaved
               </Badge>
             ) : (
-              <span className="ml-auto" />
+              <span className={selectedIsPdf ? "" : "ml-auto"} />
             )}
             <Button
               size="icon-xs"
@@ -240,7 +242,9 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
             </Button>
           </div>
 
-          {editorMode === "preview" && selectedFile ? (
+          {selectedFile && selectedIsPdf ? (
+            <SchemaIdePdfFileViewer file={selectedFile} />
+          ) : editorMode === "preview" && selectedFile ? (
             <SchemaIdePreviewView
               file={selectedFile}
               files={files}
@@ -251,6 +255,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                 previews as unknown as readonly SchemaIdePreviewRegistration<unknown, string>[]
               }
               readOnly={readOnly}
+              onChange={store.updateActiveFile}
             />
           ) : (
             <SchemaCodeMirrorEditor
@@ -267,23 +272,43 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
           )}
 
           {showDebug ? (
-            <div className="h-56 shrink-0 border-t">
-              <ScrollArea className="h-full">
-                <pre className="whitespace-pre-wrap p-3 text-xs">
-                  {JSON.stringify(
-                    {
-                      revision: snapshot.revision,
-                      capabilities,
-                      diagnostics: reflection.diagnostics,
-                      routeMatches: reflection.routeMatches,
-                      schemas: reflection.schemas,
-                      conflicts: state.conflicts,
-                    },
-                    null,
-                    2,
+            <div className="shrink-0 border-t">
+              <div className="flex h-9 items-center gap-2 px-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-xs"
+                  onClick={() => setDebugExpanded((expanded) => !expanded)}
+                >
+                  <Bug className="size-3.5" />
+                  Debug
+                  {debugExpanded ? (
+                    <ChevronDown className="size-3.5" />
+                  ) : (
+                    <ChevronUp className="size-3.5" />
                   )}
-                </pre>
-              </ScrollArea>
+                </Button>
+              </div>
+              {debugExpanded ? (
+                <div className="h-56 border-t">
+                  <ScrollArea className="h-full">
+                    <pre className="whitespace-pre-wrap p-3 text-xs">
+                      {JSON.stringify(
+                        {
+                          revision: snapshot.revision,
+                          capabilities,
+                          diagnostics: reflection.diagnostics,
+                          routeMatches: reflection.routeMatches,
+                          schemas: reflection.schemas,
+                          conflicts: state.conflicts,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </ScrollArea>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

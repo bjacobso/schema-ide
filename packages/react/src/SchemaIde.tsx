@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   FileCode2,
   FilePlus2,
   FolderTree,
@@ -52,6 +53,8 @@ import {
   type SchemaIdePreviewRegistrationForRoutes,
 } from "./preview";
 import { SchemaCodeMirrorEditor } from "./SchemaCodeMirrorEditor";
+import { SchemaIdeFileTree } from "./SchemaIdeFileTree";
+import { isPdfPath, SchemaIdePdfFileViewer } from "./SchemaIdePdfFileViewer";
 import { SchemaIdePreviewView } from "./SchemaIdePreviewView";
 
 export interface SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
@@ -106,6 +109,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   const [debugTab, setDebugTab] = useState<
     "diagnostics" | "schema" | "value" | "routes" | "history" | "context"
   >("diagnostics");
+  const [debugExpanded, setDebugExpanded] = useState(false);
   const [editorMode, setEditorMode] = useState<SchemaIdeEditorMode>(defaultMode);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const [pendingProposal, setPendingProposal] = useState<SchemaIdePatchProposal | null>(null);
@@ -184,6 +188,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
     () => getSchemaIdeFileDiagnosticCounts(reflection.diagnostics),
     [reflection.diagnostics],
   );
+  const dirtyPaths = useMemo(() => new Set(Object.keys(drafts)), [drafts]);
 
   const previewResolution = useMemo(
     () =>
@@ -639,44 +644,13 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
                 <FilePlus2 className="size-3.5" />
               </Button>
             </div>
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="p-2">
-                {resolvedFiles.map((file) => {
-                  const counts = fileDiagnosticCounts.get(file.path);
-                  const issueCount = counts ? counts.errors || counts.warnings || counts.infos : 0;
-                  const issueLabel = counts?.errors
-                    ? `${counts.errors} error${counts.errors === 1 ? "" : "s"}`
-                    : counts?.warnings
-                      ? `${counts.warnings} warning${counts.warnings === 1 ? "" : "s"}`
-                      : counts?.infos
-                        ? `${counts.infos} info`
-                        : null;
-
-                  return (
-                    <button
-                      key={file.path}
-                      className={`mb-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs ${
-                        selectedFile?.path === file.path
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
-                      onClick={() => setActiveFile(file.path)}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{file.path}</span>
-                      {issueCount ? (
-                        <Badge
-                          variant={counts?.errors ? "destructive" : "secondary"}
-                          className="h-4 min-w-4 px-1.5 text-[10px]"
-                          title={issueLabel ?? undefined}
-                        >
-                          {issueCount}
-                        </Badge>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+            <SchemaIdeFileTree
+              files={resolvedFiles}
+              activePath={selectedFile?.path}
+              diagnosticCounts={fileDiagnosticCounts}
+              dirtyPaths={dirtyPaths}
+              onSelectFile={setActiveFile}
+            />
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col">
@@ -776,7 +750,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
             </div>
 
             {selectedFile && selectedIsPdf ? (
-              <PdfFileViewer file={selectedFile} />
+              <SchemaIdePdfFileViewer file={selectedFile} />
             ) : editorMode === "preview" && selectedFile ? (
               <SchemaIdePreviewView
                 file={selectedFile}
@@ -788,6 +762,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
                   previews as unknown as readonly SchemaIdePreviewRegistration<unknown, string>[]
                 }
                 readOnly={readOnly}
+                onChange={updateActiveFile}
               />
             ) : (
               <SchemaCodeMirrorEditor
@@ -814,7 +789,9 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
             {showDebug ? (
               <SchemaDebugPanel
                 tab={debugTab}
+                expanded={debugExpanded}
                 onTabChange={setDebugTab}
+                onExpandedChange={setDebugExpanded}
                 reflection={reflection}
                 workspace={workspace}
               />
@@ -824,44 +801,6 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
       </div>
     </div>
   );
-}
-
-function PdfFileViewer({ file }: { readonly file: SourceFile }) {
-  const dataUrl = useMemo(() => pdfContentToDataUrl(file.content), [file.content]);
-
-  if (!dataUrl) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6">
-        <div className="max-w-sm rounded-md border bg-background p-4 text-sm text-muted-foreground">
-          Unable to display PDF content.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-0 flex-1 bg-muted/20">
-      <iframe title={file.path} src={dataUrl} className="h-full w-full border-0 bg-background" />
-    </div>
-  );
-}
-
-function isPdfPath(path: string | null | undefined): boolean {
-  return path?.toLowerCase().endsWith(".pdf") ?? false;
-}
-
-function pdfContentToDataUrl(content: string): string | null {
-  const trimmed = content.trim();
-  if (!trimmed) return null;
-
-  if (/^data:application\/pdf[^,]*;base64,/i.test(trimmed)) return trimmed;
-
-  if (trimmed.startsWith("%PDF")) {
-    if (typeof globalThis.btoa !== "function") return null;
-    return `data:application/pdf;base64,${globalThis.btoa(trimmed)}`;
-  }
-
-  return `data:application/pdf;base64,${trimmed.replace(/\s+/g, "")}`;
 }
 
 function FormatSelect({
@@ -950,14 +889,18 @@ function PatchProposalPanel({
 
 function SchemaDebugPanel({
   tab,
+  expanded,
   onTabChange,
+  onExpandedChange,
   reflection,
   workspace,
 }: {
   readonly tab: "diagnostics" | "schema" | "value" | "routes" | "history" | "context";
+  readonly expanded: boolean;
   readonly onTabChange: (
     tab: "diagnostics" | "schema" | "value" | "routes" | "history" | "context",
   ) => void;
+  readonly onExpandedChange: (expanded: boolean) => void;
   readonly reflection: ReturnType<typeof createReflection>;
   readonly workspace: VersionedWorkspaceState;
 }) {
@@ -997,24 +940,41 @@ function SchemaDebugPanel({
               : reflection;
 
   return (
-    <div className="h-56 shrink-0 border-t">
-      <div className="flex h-9 items-center gap-1 border-b px-2">
-        <Bug className="mr-1 size-4 text-muted-foreground" />
-        {tabs.map(([id, label]) => (
-          <Button
-            key={id}
-            size="sm"
-            variant={tab === id ? "secondary" : "ghost"}
-            className="h-7 px-2 text-xs"
-            onClick={() => onTabChange(id)}
-          >
-            {label}
-          </Button>
-        ))}
+    <div className="shrink-0 border-t">
+      <div className="flex h-9 items-center gap-1 px-2">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 gap-1 px-2 text-xs"
+          onClick={() => onExpandedChange(!expanded)}
+        >
+          <Bug className="size-3.5" />
+          Debug
+          {expanded ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+        </Button>
+        {expanded
+          ? tabs.map(([id, label]) => (
+              <Button
+                key={id}
+                size="sm"
+                variant={tab === id ? "secondary" : "ghost"}
+                className="h-7 px-2 text-xs"
+                onClick={() => onTabChange(id)}
+              >
+                {label}
+              </Button>
+            ))
+          : null}
       </div>
-      <ScrollArea className="h-[calc(100%-2.25rem)]">
-        <pre className="whitespace-pre-wrap p-3 text-xs">{JSON.stringify(content, null, 2)}</pre>
-      </ScrollArea>
+      {expanded ? (
+        <div className="h-56 border-t">
+          <ScrollArea className="h-full">
+            <pre className="whitespace-pre-wrap p-3 text-xs">
+              {JSON.stringify(content, null, 2)}
+            </pre>
+          </ScrollArea>
+        </div>
+      ) : null}
     </div>
   );
 }

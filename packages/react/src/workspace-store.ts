@@ -216,18 +216,26 @@ export function createSchemaIdeWorkspaceStore(
     errorRef.set(error instanceof Error ? error.message : String(error));
   };
 
-  const applySnapshot = (snapshot: WorkspaceSnapshot) => {
+  const applySnapshot = (
+    snapshot: WorkspaceSnapshot,
+    options: { readonly followChangedFile?: boolean | undefined } = {},
+  ) => {
     if (snapshotRef.value && snapshot.revision < snapshotRef.value.revision) {
       return;
     }
+    const previous = snapshotRef.value;
     const conflicts = detectDraftConflicts({
-      previous: snapshotRef.value,
+      previous,
       next: snapshot,
       drafts: draftsRef.value,
       currentConflicts: conflictsRef.value,
     });
     snapshotRef.set(snapshot);
-    const nextActiveFile = selectActiveFile(activeFileRef.value, snapshot.files);
+    const followedFile =
+      options.followChangedFile && previous
+        ? selectChangedFile(previous.files, snapshot.files)
+        : null;
+    const nextActiveFile = followedFile ?? selectActiveFile(activeFileRef.value, snapshot.files);
     if (nextActiveFile !== activeFileRef.value) {
       activeFileRef.set(nextActiveFile);
     }
@@ -246,6 +254,14 @@ export function createSchemaIdeWorkspaceStore(
   ): Effect.Effect<WorkspaceChangeResponse, SchemaIdeWorkspaceError> =>
     workspace.applyChange(change).pipe(
       Effect.tap(() => refreshSnapshot),
+      Effect.tap((response) =>
+        Effect.sync(() => {
+          const followedFile = selectExistingPath(response.changedPaths, snapshotRef.value?.files);
+          if (followedFile && followedFile !== activeFileRef.value) {
+            activeFileRef.set(followedFile);
+          }
+        }),
+      ),
       Effect.catch((error) => setErrorEffect(error).pipe(Effect.flatMap(() => Effect.fail(error)))),
     );
 
@@ -307,7 +323,7 @@ export function createSchemaIdeWorkspaceStore(
                 errorRef.set(event.message);
                 return;
               }
-              applySnapshot(event.snapshot);
+              applySnapshot(event.snapshot, { followChangedFile: true });
             }),
           ),
           Effect.catch(setErrorEffect),
@@ -489,6 +505,35 @@ function selectActiveFile(current: string | null, files: readonly SourceFile[]):
     return current;
   }
   return files[0]?.path ?? null;
+}
+
+function selectChangedFile(
+  previousFiles: readonly SourceFile[],
+  nextFiles: readonly SourceFile[],
+): string | null {
+  const previousByPath = new Map(previousFiles.map((file) => [file.path, file.content]));
+  const changedPaths: string[] = [];
+
+  for (const file of nextFiles) {
+    if (previousByPath.get(file.path) !== file.content) {
+      changedPaths.push(file.path);
+    }
+  }
+
+  if (changedPaths.length) {
+    return selectExistingPath(changedPaths, nextFiles);
+  }
+
+  return null;
+}
+
+function selectExistingPath(
+  paths: readonly string[],
+  files: readonly SourceFile[] | null | undefined,
+): string | null {
+  if (!files?.length) return null;
+  const existingPaths = new Set(files.map((file) => file.path));
+  return paths.find((path) => existingPaths.has(path)) ?? null;
 }
 
 function detectDraftConflicts({

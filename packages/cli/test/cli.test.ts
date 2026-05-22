@@ -386,6 +386,50 @@ describe("schema-ide-cli", () => {
     }
   });
 
+  it("local filesystem workspace client keeps binary sidecars as bytes on disk", async () => {
+    const directory = await createFixtureWorkspace();
+    const workspace = {
+      ...(await loadSchemaIdeWorkspaceConfig(fixtureConfigPath)),
+      include: ["**/*.json", "**/*.pdf"],
+    };
+    const client = createLocalFilesystemWorkspaceClient({
+      workspace,
+      directory,
+      debounceMs: 5,
+    });
+    const pdfPath = join(directory, "documents", "sample.pdf");
+    const originalBytes = Buffer.from("%PDF-1.7\n%%EOF\n");
+    const updatedBytes = Buffer.from("%PDF-1.7\n% updated\n%%EOF\n");
+
+    try {
+      await mkdir(dirname(pdfPath), { recursive: true });
+      await writeFile(pdfPath, originalBytes);
+
+      const snapshot = await Effect.runPromise(client.getSnapshot);
+      expect(snapshot.files).toEqual(
+        expect.arrayContaining([
+          {
+            path: "documents/sample.pdf",
+            content: originalBytes.toString("base64"),
+          },
+        ]),
+      );
+
+      await Effect.runPromise(
+        client.applyChange({
+          type: "writeFile",
+          path: "documents/sample.pdf",
+          content: updatedBytes.toString("base64"),
+        }),
+      );
+
+      await expect(readFile(pdfPath)).resolves.toEqual(updatedBytes);
+    } finally {
+      await Effect.runPromise(client.close);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("local filesystem workspace client reports invalid external JSON as diagnostics", async () => {
     const directory = await createFixtureWorkspace();
     const workspace = await loadSchemaIdeWorkspaceConfig(fixtureConfigPath);
