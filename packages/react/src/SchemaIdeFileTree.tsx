@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import { AlertTriangle, ChevronDown, ChevronRight, File, Folder, FolderOpen } from "lucide-react";
 import type { SourceFile } from "@schema-ide/core";
-import { Badge, Button, ScrollArea } from "@schema-ide/ui";
 import type { SchemaIdeFileDiagnosticCount } from "./diagnostics";
 
 export interface SchemaIdeFileTreeProps {
@@ -96,7 +98,7 @@ export function SchemaIdeFileTree({
   };
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
       <div className="p-2">
         {tree.children.map((node) => (
           <FileTreeNodeView
@@ -110,7 +112,7 @@ export function SchemaIdeFileTree({
           />
         ))}
       </div>
-    </ScrollArea>
+    </Box>
   );
 }
 
@@ -134,9 +136,12 @@ function FileTreeNodeView({
     return (
       <div>
         <Button
-          variant="ghost"
+          variant="text"
+          color="inherit"
+          size="small"
           className="mb-1 h-7 w-full justify-start gap-1 rounded px-1.5 text-xs"
           style={{ paddingLeft: depth * 12 + 6 }}
+          sx={{ justifyContent: "flex-start", minWidth: 0, textTransform: "none" }}
           onClick={() => onToggleDirectory(node.path)}
           title={node.path}
         >
@@ -183,14 +188,16 @@ function FileTreeBadges({ meta }: { readonly meta: FileTreeMeta }) {
   return (
     <>
       {meta.conflict ? <AlertTriangle className="size-3.5 shrink-0 text-destructive" /> : null}
-      {meta.dirty ? <Badge className="h-4 shrink-0 px-1.5 text-[10px]">Dirty</Badge> : null}
+      {meta.dirty ? (
+        <Chip className="h-4 shrink-0 px-1.5 text-[10px]" label="Dirty" size="small" />
+      ) : null}
       {meta.issueCount ? (
-        <Badge
-          variant={meta.hasErrors ? "destructive" : "secondary"}
+        <Chip
+          color={meta.hasErrors ? "error" : "secondary"}
           className="h-4 min-w-4 shrink-0 px-1.5 text-[10px]"
-        >
-          {meta.issueCount}
-        </Badge>
+          label={meta.issueCount}
+          size="small"
+        />
       ) : null}
     </>
   );

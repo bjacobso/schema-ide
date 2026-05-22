@@ -13,5 +13,4 @@ export const schemaIdeAliases = {
   "@schema-ide/react": resolve(rootDir, "packages/react/src/index.ts"),
   "@schema-ide/schema-algebra": resolve(rootDir, "packages/schema-algebra/src/index.ts"),
   "@schema-ide/server": resolve(rootDir, "packages/server/src/index.ts"),
-  "@schema-ide/ui": resolve(rootDir, "packages/ui/src/index.ts"),
 };

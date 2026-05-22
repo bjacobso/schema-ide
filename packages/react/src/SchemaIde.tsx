@@ -1,4 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import MuiCheckbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect, { type SelectChangeEvent } from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
+import MuiToggleButton from "@mui/material/ToggleButton";
+import MuiToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import {
   AlertTriangle,
   Bot,
@@ -44,7 +56,6 @@ import {
   type WorkspaceRevisionMetadata,
 } from "@schema-ide/core";
 import type { SchemaIdeDocumentFormat, SourceFile } from "@schema-ide/core";
-import { Badge, Button, Checkbox, ScrollArea, Select, Textarea, ToggleGroup } from "@schema-ide/ui";
 import { getSchemaIdeFileDiagnosticCounts } from "./diagnostics";
 import {
   resolveSchemaIdePreview,
@@ -590,11 +601,15 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
           <FileCode2 className="size-4" />
           {title}
         </div>
-        <Badge variant={reflection.validationSummary.valid ? "secondary" : "destructive"}>
-          {reflection.validationSummary.valid
-            ? "Valid"
-            : `${reflection.validationSummary.errorCount} errors`}
-        </Badge>
+        <Chip
+          color={reflection.validationSummary.valid ? "secondary" : "error"}
+          label={
+            reflection.validationSummary.valid
+              ? "Valid"
+              : `${reflection.validationSummary.errorCount} errors`
+          }
+          size="small"
+        />
         <div className="ml-auto flex items-center gap-2">
           {!workspaceMode ? (
             <FormatSelect
@@ -633,16 +648,15 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
             <div className="flex h-10 items-center gap-2 border-b px-3 text-sm font-medium">
               <FolderTree className="size-4" />
               Files
-              <Button
-                size="icon-xs"
-                variant="ghost"
+              <IconButton
+                size="small"
                 className="ml-auto"
                 onClick={addFile}
                 disabled={readOnly}
                 title="Add file"
               >
                 <FilePlus2 className="size-3.5" />
-              </Button>
+              </IconButton>
             </div>
             <SchemaIdeFileTree
               files={resolvedFiles}
@@ -658,51 +672,60 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
               <div className="min-w-0 truncate font-mono text-xs">
                 {selectedFile?.path ?? "No file"}
               </div>
-              <Badge variant="outline" className="ml-auto">
-                {selectedFileKindLabel}
-              </Badge>
+              <Chip
+                className="ml-auto"
+                label={selectedFileKindLabel}
+                size="small"
+                variant="outlined"
+              />
               {!selectedIsPdf ? (
-                <ToggleGroup
+                <MuiToggleButtonGroup
                   aria-label="Editor mode"
-                  onValueChange={(value) => setEditorMode(value as SchemaIdeEditorMode)}
-                  options={[
-                    { value: "code", label: "Code" },
-                    { value: "preview", label: "Preview", disabled: !selectedFile },
-                  ]}
-                  size="sm"
+                  exclusive
+                  onChange={(_, value: SchemaIdeEditorMode | null) => {
+                    if (value) setEditorMode(value);
+                  }}
+                  size="small"
                   value={editorMode}
-                />
+                >
+                  <MuiToggleButton value="code">Code</MuiToggleButton>
+                  <MuiToggleButton value="preview" disabled={!selectedFile}>
+                    Preview
+                  </MuiToggleButton>
+                </MuiToggleButtonGroup>
               ) : null}
               {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
-                <Select
-                  value={previewResolution.selected.id}
-                  onValueChange={setSelectedPreviewId}
-                  className="max-w-40"
-                  aria-label="Preview"
-                  options={previewResolution.previews.map((preview) => ({
-                    value: preview.id,
-                    label: preview.label,
-                  }))}
-                  size="sm"
-                />
+                <FormControl className="max-w-40" size="small">
+                  <MuiSelect
+                    value={previewResolution.selected.id}
+                    onChange={(event: SelectChangeEvent<string>) =>
+                      setSelectedPreviewId(event.target.value)
+                    }
+                    inputProps={{ "aria-label": "Preview" }}
+                  >
+                    {previewResolution.previews.map((preview) => (
+                      <MenuItem key={preview.id} value={preview.id}>
+                        {preview.label}
+                      </MenuItem>
+                    ))}
+                  </MuiSelect>
+                </FormControl>
               ) : null}
               {selectedIsDirty ? (
-                <Badge variant="secondary" className="text-[10px]">
-                  Unsaved
-                </Badge>
+                <Chip className="text-[10px]" color="secondary" label="Unsaved" size="small" />
               ) : null}
-              <Button
-                size="icon-xs"
-                variant="ghost"
+              <IconButton
+                size="small"
                 onClick={saveActiveFile}
                 disabled={readOnly || !selectedFile || !selectedIsDirty}
                 title="Save file"
               >
                 <Save className="size-3.5" />
-              </Button>
+              </IconButton>
               <Button
-                size="sm"
-                variant="ghost"
+                size="small"
+                variant="text"
+                color="inherit"
                 className="h-6 px-2 text-[11px]"
                 onClick={discardActiveDraft}
                 disabled={readOnly || !selectedFile || !selectedIsDirty}
@@ -710,33 +733,30 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
               >
                 Discard
               </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
+              <IconButton
+                size="small"
                 onClick={undoWorkspace}
                 disabled={readOnly || !canUndoWorkspaceChange(workspace)}
                 title="Undo workspace change"
               >
                 <Undo2 className="size-3.5" />
-              </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
+              </IconButton>
+              <IconButton
+                size="small"
                 onClick={redoWorkspace}
                 disabled={readOnly || !canRedoWorkspaceChange(workspace)}
                 title="Redo workspace change"
               >
                 <Redo2 className="size-3.5" />
-              </Button>
-              <Button
-                size="icon-xs"
-                variant="ghost"
+              </IconButton>
+              <IconButton
+                size="small"
                 onClick={deleteActiveFile}
                 disabled={readOnly || !selectedFile}
                 title="Delete file"
               >
                 <Trash2 className="size-3.5" />
-              </Button>
+              </IconButton>
             </div>
 
             {selectedFile && selectedIsPdf ? (
@@ -805,17 +825,22 @@ function FormatSelect({
   readonly disabled: boolean;
 }) {
   return (
-    <Select
-      value={value}
-      disabled={disabled}
-      onValueChange={(nextValue) => onChange(nextValue as SchemaIdeDocumentFormat)}
-      aria-label="Document format"
-      options={allowedFormats.map((format) => ({
-        value: format,
-        label: format.toUpperCase(),
-      }))}
-      size="sm"
-    />
+    <FormControl size="small">
+      <MuiSelect
+        value={value}
+        disabled={disabled}
+        onChange={(event: SelectChangeEvent<string>) =>
+          onChange(event.target.value as SchemaIdeDocumentFormat)
+        }
+        inputProps={{ "aria-label": "Document format" }}
+      >
+        {allowedFormats.map((format) => (
+          <MenuItem key={format} value={format}>
+            {format.toUpperCase()}
+          </MenuItem>
+        ))}
+      </MuiSelect>
+    </FormControl>
   );
 }
 
@@ -835,30 +860,36 @@ function PatchProposalPanel({
   return (
     <div className="shrink-0 border-t bg-muted/20 p-3">
       <div className="mb-2 flex items-center gap-2">
-        <Badge variant={proposal.validation.valid ? "secondary" : "destructive"}>
-          {proposal.validation.valid ? "Valid proposal" : "Invalid proposal"}
-        </Badge>
+        <Chip
+          color={proposal.validation.valid ? "secondary" : "error"}
+          label={proposal.validation.valid ? "Valid proposal" : "Invalid proposal"}
+          size="small"
+        />
         <span className="truncate text-sm font-medium">{proposal.label}</span>
         <Button
-          size="sm"
+          size="small"
           className="ml-auto h-7 px-2 text-xs"
           disabled={disabled}
           onClick={onApply}
         >
           Apply
         </Button>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onReject}>
+        <Button size="small" variant="outlined" className="h-7 px-2 text-xs" onClick={onReject}>
           Reject
         </Button>
       </div>
       <div className="flex flex-wrap gap-1">
         {proposal.edits.map((edit) => (
-          <Badge key={edit.path} variant="outline" className="text-[10px]">
-            {edit.path}
-          </Badge>
+          <Chip
+            key={edit.path}
+            className="text-[10px]"
+            label={edit.path}
+            size="small"
+            variant="outlined"
+          />
         ))}
       </div>
-      <ScrollArea className="mt-2 max-h-40 rounded border bg-background">
+      <Box className="mt-2 max-h-40 rounded border bg-background" sx={{ overflow: "auto" }}>
         <pre className="whitespace-pre-wrap p-2 text-[11px] leading-relaxed">
           {proposal.edits
             .map((edit) =>
@@ -870,7 +901,7 @@ function PatchProposalPanel({
             )
             .join("\n")}
         </pre>
-      </ScrollArea>
+      </Box>
     </div>
   );
 }
@@ -931,8 +962,9 @@ function SchemaDebugPanel({
     <div className="shrink-0 border-t">
       <div className="flex h-9 items-center gap-1 px-2">
         <Button
-          size="sm"
-          variant="ghost"
+          size="small"
+          variant="text"
+          color="inherit"
           className="h-7 gap-1 px-2 text-xs"
           onClick={() => onExpandedChange(!expanded)}
         >
@@ -944,8 +976,9 @@ function SchemaDebugPanel({
           ? tabs.map(([id, label]) => (
               <Button
                 key={id}
-                size="sm"
-                variant={tab === id ? "secondary" : "ghost"}
+                size="small"
+                variant={tab === id ? "contained" : "text"}
+                color={tab === id ? "secondary" : "inherit"}
                 className="h-7 px-2 text-xs"
                 onClick={() => onTabChange(id)}
               >
@@ -956,11 +989,11 @@ function SchemaDebugPanel({
       </div>
       {expanded ? (
         <div className="h-56 border-t">
-          <ScrollArea className="h-full">
+          <Box className="h-full" sx={{ overflow: "auto" }}>
             <pre className="whitespace-pre-wrap p-3 text-xs">
               {JSON.stringify(content, null, 2)}
             </pre>
-          </ScrollArea>
+          </Box>
         </div>
       ) : null}
     </div>
@@ -1066,21 +1099,23 @@ function SchemaChatPanel({
         <Bot className="size-4" />
         <span className="text-sm font-medium">Chat</span>
         {chat.models ? (
-          <Select
-            value={model}
-            onValueChange={setModel}
-            disabled={pending}
-            className="ml-auto max-w-36"
-            aria-label="Chat model"
-            options={chat.models.map((candidate) => ({
-              value: candidate.id,
-              label: candidate.label,
-            }))}
-            size="sm"
-          />
+          <FormControl className="ml-auto max-w-36" size="small">
+            <MuiSelect
+              value={model}
+              onChange={(event: SelectChangeEvent<string>) => setModel(event.target.value)}
+              disabled={pending}
+              inputProps={{ "aria-label": "Chat model" }}
+            >
+              {chat.models.map((candidate) => (
+                <MenuItem key={candidate.id} value={candidate.id}>
+                  {candidate.label}
+                </MenuItem>
+              ))}
+            </MuiSelect>
+          </FormControl>
         ) : null}
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
         <div className="space-y-3 p-3">
           <div className="rounded-md border bg-background p-3 text-xs text-muted-foreground">
             <div className="mb-1 flex items-center gap-1 font-medium text-foreground">
@@ -1114,9 +1149,9 @@ function SchemaChatPanel({
             </div>
           ) : null}
         </div>
-      </ScrollArea>
+      </Box>
       <div className="shrink-0 border-t bg-background p-3">
-        <Textarea
+        <TextField
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -1124,23 +1159,30 @@ function SchemaChatPanel({
           }}
           disabled={pending || readOnly}
           placeholder="Ask about the schema, validation errors, or desired edits..."
+          fullWidth
+          multiline
+          size="small"
           className="mb-2 min-h-20 resize-none text-sm"
         />
         <div className="flex justify-end gap-2">
-          <Checkbox
-            checked={planMode}
+          <FormControlLabel
             className="mr-auto"
             disabled={pending}
             label="Plan"
-            onCheckedChange={setPlanMode}
-            size="small"
+            control={
+              <MuiCheckbox
+                checked={planMode}
+                onChange={(event) => setPlanMode(event.target.checked)}
+                size="small"
+              />
+            }
           />
           {pending ? (
-            <Button variant="outline" size="sm" onClick={() => handleRef.current?.cancel()}>
+            <Button variant="outlined" size="small" onClick={() => handleRef.current?.cancel()}>
               Cancel
             </Button>
           ) : null}
-          <Button size="sm" onClick={send} disabled={pending || !draft.trim() || readOnly}>
+          <Button size="small" onClick={send} disabled={pending || !draft.trim() || readOnly}>
             <Send className="mr-1 size-3.5" />
             Send
           </Button>
@@ -1181,9 +1223,7 @@ function ToolCallCard({ toolCall }: { readonly toolCall: SchemaIdeToolCall }) {
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate font-mono text-[11px] font-medium">{toolCall.name}</span>
-            <Badge variant={status.variant} className="text-[10px]">
-              {status.label}
-            </Badge>
+            <Chip className="text-[10px]" color={status.color} label={status.label} size="small" />
           </div>
           <div className="truncate text-[10px] text-muted-foreground">Tool call {toolCall.id}</div>
         </div>
@@ -1236,7 +1276,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   if (status === "pending") {
     return {
       label: "Running",
-      variant: "secondary" as const,
+      color: "secondary" as const,
       Icon: RefreshCw,
       iconClass: "bg-muted text-muted-foreground",
       spin: true,
@@ -1245,7 +1285,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   if (status === "error") {
     return {
       label: "Error",
-      variant: "destructive" as const,
+      color: "error" as const,
       Icon: AlertTriangle,
       iconClass: "bg-destructive/10 text-destructive",
       spin: false,
@@ -1253,7 +1293,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   }
   return {
     label: "Completed",
-    variant: "secondary" as const,
+    color: "secondary" as const,
     Icon: Check,
     iconClass: "bg-primary/10 text-primary",
     spin: false,

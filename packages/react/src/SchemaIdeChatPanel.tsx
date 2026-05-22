@@ -1,4 +1,13 @@
 import { useCallback, useRef, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import MuiCheckbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect, { type SelectChangeEvent } from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
 import {
   AlertTriangle,
   Bot,
@@ -15,7 +24,6 @@ import type {
   SchemaIdeToolRuntime,
 } from "@schema-ide/agent";
 import type { SchemaIdeReflection } from "@schema-ide/core";
-import { Badge, Button, Checkbox, ScrollArea, Select, Textarea } from "@schema-ide/ui";
 
 export interface SchemaIdeChatPanelProps {
   readonly chat: SchemaIdeChatAdapter;
@@ -96,21 +104,23 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
         <Bot className="size-4" />
         <span className="text-sm font-medium">Chat</span>
         {chat.models ? (
-          <Select
-            value={model}
-            onValueChange={setModel}
-            disabled={pending}
-            className="ml-auto max-w-36"
-            aria-label="Chat model"
-            options={chat.models.map((candidate) => ({
-              value: candidate.id,
-              label: candidate.label,
-            }))}
-            size="sm"
-          />
+          <FormControl className="ml-auto max-w-36" size="small">
+            <MuiSelect
+              value={model}
+              onChange={(event: SelectChangeEvent<string>) => setModel(event.target.value)}
+              disabled={pending}
+              inputProps={{ "aria-label": "Chat model" }}
+            >
+              {chat.models.map((candidate) => (
+                <MenuItem key={candidate.id} value={candidate.id}>
+                  {candidate.label}
+                </MenuItem>
+              ))}
+            </MuiSelect>
+          </FormControl>
         ) : null}
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
         <div className="space-y-3 p-3">
           <div className="rounded-md border bg-background p-3 text-xs text-muted-foreground">
             <div className="mb-1 flex items-center gap-1 font-medium text-foreground">
@@ -144,9 +154,9 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
             </div>
           ) : null}
         </div>
-      </ScrollArea>
+      </Box>
       <div className="shrink-0 border-t bg-background p-3">
-        <Textarea
+        <TextField
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -154,23 +164,30 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
           }}
           disabled={pending || readOnly}
           placeholder="Ask about the schema, validation errors, or desired edits..."
+          fullWidth
+          multiline
+          size="small"
           className="mb-2 min-h-20 resize-none text-sm"
         />
         <div className="flex justify-end gap-2">
-          <Checkbox
-            checked={planMode}
+          <FormControlLabel
             className="mr-auto"
             disabled={pending}
             label="Plan"
-            onCheckedChange={setPlanMode}
-            size="small"
+            control={
+              <MuiCheckbox
+                checked={planMode}
+                onChange={(event) => setPlanMode(event.target.checked)}
+                size="small"
+              />
+            }
           />
           {pending ? (
-            <Button variant="outline" size="sm" onClick={() => handleRef.current?.cancel()}>
+            <Button variant="outlined" size="small" onClick={() => handleRef.current?.cancel()}>
               Cancel
             </Button>
           ) : null}
-          <Button size="sm" onClick={send} disabled={pending || !draft.trim() || readOnly}>
+          <Button size="small" onClick={send} disabled={pending || !draft.trim() || readOnly}>
             <Send className="mr-1 size-3.5" />
             Send
           </Button>
@@ -211,9 +228,7 @@ function ToolCallCard({ toolCall }: { readonly toolCall: SchemaIdeToolCall }) {
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate font-mono text-[11px] font-medium">{toolCall.name}</span>
-            <Badge variant={status.variant} className="text-[10px]">
-              {status.label}
-            </Badge>
+            <Chip className="text-[10px]" color={status.color} label={status.label} size="small" />
           </div>
           <div className="truncate text-[10px] text-muted-foreground">Tool call {toolCall.id}</div>
         </div>
@@ -266,7 +281,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   if (status === "pending") {
     return {
       label: "Running",
-      variant: "secondary" as const,
+      color: "secondary" as const,
       Icon: RefreshCw,
       iconClass: "bg-muted text-muted-foreground",
       spin: true,
@@ -275,7 +290,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   if (status === "error") {
     return {
       label: "Error",
-      variant: "destructive" as const,
+      color: "error" as const,
       Icon: AlertTriangle,
       iconClass: "bg-destructive/10 text-destructive",
       spin: false,
@@ -283,7 +298,7 @@ function getToolStatus(status: SchemaIdeToolCall["status"]) {
   }
   return {
     label: "Completed",
-    variant: "secondary" as const,
+    color: "secondary" as const,
     Icon: Check,
     iconClass: "bg-primary/10 text-primary",
     spin: false,

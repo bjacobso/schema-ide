@@ -4,8 +4,8 @@ import {
   type Evaluation,
   type Prompt,
 } from "@schema-ide/examples";
+import Chip from "@mui/material/Chip";
 import { WorkspacePreview, type SchemaIdePreviewComponentProps } from "@schema-ide/react";
-import { Badge } from "@schema-ide/ui";
 import {
   EmptyLine,
   ExampleIcon,
@@ -88,9 +88,12 @@ function DatasetPreview(props: SchemaIdePreviewComponentProps<Dataset>) {
                   <span className="font-mono text-xs font-medium">
                     {testCase.id ?? `case-${index + 1}`}
                   </span>
-                  <Badge variant="outline" className="ml-auto text-[10px]">
-                    Expected: {testCase.expected ?? "unset"}
-                  </Badge>
+                  <Chip
+                    className="ml-auto text-[10px]"
+                    label={`Expected: ${testCase.expected ?? "unset"}`}
+                    size="small"
+                    variant="outlined"
+                  />
                 </div>
                 <div className="text-sm">{testCase.input ?? "No input"}</div>
               </div>

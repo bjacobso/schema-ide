@@ -1,5 +1,5 @@
+import Box from "@mui/material/Box";
 import { parseDocument, type SchemaIdeDocumentFormat, type SourceFile } from "@schema-ide/core";
-import { ScrollArea } from "@schema-ide/ui";
 import type { createReflection } from "@schema-ide/core";
 import type { SchemaIdePreviewRegistration, SchemaIdePreviewResolution } from "./preview";
 
@@ -104,7 +104,7 @@ function SchemaPreviewNotFound({
   };
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
       <div className="grid max-w-3xl gap-4 p-4">
         <div className="rounded-lg border bg-muted/20 p-4">
           <div className="text-sm font-medium">Preview component not found</div>
@@ -119,6 +119,6 @@ function SchemaPreviewNotFound({
           {JSON.stringify(debug, null, 2)}
         </pre>
       </div>
-    </ScrollArea>
+    </Box>
   );
 }

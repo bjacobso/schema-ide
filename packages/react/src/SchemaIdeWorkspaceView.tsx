@@ -1,4 +1,13 @@
 import { useMemo, useState, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect, { type SelectChangeEvent } from "@mui/material/Select";
+import MuiToggleButton from "@mui/material/ToggleButton";
+import MuiToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import {
   Bug,
   ChevronDown,
@@ -16,7 +25,6 @@ import type {
   WorkspaceRouteMap,
 } from "@schema-ide/core";
 import type { SchemaIdeWorkspaceService } from "@schema-ide/protocol";
-import { Badge, Button, ScrollArea, Select, ToggleGroup } from "@schema-ide/ui";
 import { Effect } from "effect";
 import { getSchemaIdeFileDiagnosticCounts } from "./diagnostics";
 import {
@@ -106,15 +114,17 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
           <FileCode2 className="size-4" />
           {title ?? capabilities?.workspace.title ?? "Schema IDE"}
         </div>
-        <Badge variant={reflection.validationSummary.valid ? "secondary" : "destructive"}>
-          {reflection.validationSummary.valid
-            ? "Valid"
-            : `${reflection.validationSummary.errorCount} errors`}
-        </Badge>
+        <Chip
+          color={reflection.validationSummary.valid ? "secondary" : "error"}
+          label={
+            reflection.validationSummary.valid
+              ? "Valid"
+              : `${reflection.validationSummary.errorCount} errors`
+          }
+          size="small"
+        />
         {capabilities && !capabilities.agent.enabled ? (
-          <Badge variant="outline" className="ml-auto">
-            Agent hidden
-          </Badge>
+          <Chip className="ml-auto" label="Agent hidden" size="small" variant="outlined" />
         ) : null}
       </div>
 
@@ -140,16 +150,15 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
           <div className="flex h-10 items-center gap-2 border-b px-3 text-sm font-medium">
             <FolderTree className="size-4" />
             Files
-            <Button
-              size="icon-xs"
-              variant="ghost"
+            <IconButton
+              size="small"
               className="ml-auto"
               onClick={() => Effect.runFork(store.addFile)}
               disabled={readOnly}
               title="Add file"
             >
               <FilePlus2 className="size-3.5" />
-            </Button>
+            </IconButton>
           </div>
           <SchemaIdeFileTree
             files={files}
@@ -167,69 +176,73 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               {selectedFile?.path ?? "No file"}
             </div>
             {selectedIsPdf ? (
-              <Badge variant="outline" className="ml-auto">
-                PDF
-              </Badge>
+              <Chip className="ml-auto" label="PDF" size="small" variant="outlined" />
             ) : (
-              <ToggleGroup
+              <MuiToggleButtonGroup
                 aria-label="Editor mode"
-                onValueChange={(value) => setEditorMode(value as SchemaIdeEditorMode)}
-                options={[
-                  { value: "code", label: "Code" },
-                  { value: "preview", label: "Preview", disabled: !selectedFile },
-                ]}
-                size="sm"
+                exclusive
+                onChange={(_, value: SchemaIdeEditorMode | null) => {
+                  if (value) setEditorMode(value);
+                }}
+                size="small"
                 value={editorMode}
-              />
+              >
+                <MuiToggleButton value="code">Code</MuiToggleButton>
+                <MuiToggleButton value="preview" disabled={!selectedFile}>
+                  Preview
+                </MuiToggleButton>
+              </MuiToggleButtonGroup>
             )}
             {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
-              <Select
-                value={previewResolution.selected.id}
-                onValueChange={setSelectedPreviewId}
-                className="max-w-40"
-                aria-label="Preview"
-                options={previewResolution.previews.map((preview) => ({
-                  value: preview.id,
-                  label: preview.label,
-                }))}
-                size="sm"
-              />
+              <FormControl className="max-w-40" size="small">
+                <MuiSelect
+                  value={previewResolution.selected.id}
+                  onChange={(event: SelectChangeEvent<string>) =>
+                    setSelectedPreviewId(event.target.value)
+                  }
+                  inputProps={{ "aria-label": "Preview" }}
+                >
+                  {previewResolution.previews.map((preview) => (
+                    <MenuItem key={preview.id} value={preview.id}>
+                      {preview.label}
+                    </MenuItem>
+                  ))}
+                </MuiSelect>
+              </FormControl>
             ) : null}
             {selectedHasConflict ? (
-              <Badge
-                variant="destructive"
+              <Chip
+                color="error"
                 className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
-              >
-                External conflict
-              </Badge>
+                label="External conflict"
+                size="small"
+              />
             ) : selectedIsDirty ? (
-              <Badge
-                variant="secondary"
+              <Chip
+                color="secondary"
                 className={selectedIsPdf ? "text-[10px]" : "ml-auto text-[10px]"}
-              >
-                Unsaved
-              </Badge>
+                label="Unsaved"
+                size="small"
+              />
             ) : (
               <span className={selectedIsPdf ? "" : "ml-auto"} />
             )}
-            <Button
-              size="icon-xs"
-              variant="ghost"
+            <IconButton
+              size="small"
               onClick={() => Effect.runFork(store.saveActiveFile)}
               disabled={readOnly || !selectedFile || !selectedIsDirty}
               title="Save file"
             >
               <Save className="size-3.5" />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
+            </IconButton>
+            <IconButton
+              size="small"
               onClick={() => Effect.runFork(store.deleteActiveFile)}
               disabled={readOnly || !selectedFile || !capabilities?.features.delete}
               title="Delete file"
             >
               <Trash2 className="size-3.5" />
-            </Button>
+            </IconButton>
           </div>
 
           {selectedFile && selectedIsPdf ? (
@@ -265,8 +278,9 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
             <div className="shrink-0 border-t">
               <div className="flex h-9 items-center gap-2 px-2">
                 <Button
-                  size="sm"
-                  variant="ghost"
+                  size="small"
+                  variant="text"
+                  color="inherit"
                   className="h-7 gap-1 px-2 text-xs"
                   onClick={() => setDebugExpanded((expanded) => !expanded)}
                 >
@@ -281,7 +295,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               </div>
               {debugExpanded ? (
                 <div className="h-56 border-t">
-                  <ScrollArea className="h-full">
+                  <Box className="h-full" sx={{ overflow: "auto" }}>
                     <pre className="whitespace-pre-wrap p-3 text-xs">
                       {JSON.stringify(
                         {
@@ -296,7 +310,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                         2,
                       )}
                     </pre>
-                  </ScrollArea>
+                  </Box>
                 </div>
               ) : null}
             </div>

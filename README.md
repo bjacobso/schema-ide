@@ -44,10 +44,9 @@ The code is split into extractable workspace packages:
 - `@schema-ide/schema-algebra` — schema-native relation metadata, graph extraction, and validation. This is the future home for path algebra, traversal, constraints, lenses, projections, diffs, patches, generation, fingerprints, and other schema-derived IDE semantics.
 - `@schema-ide/protocol` — OpenRouter-compatible chat schemas plus the Effect `HttpApi` contract.
 - `@schema-ide/agent` — Effect AI tool definitions, tool execution, and chat adapters.
-- `@schema-ide/react` — the `<SchemaIde />` React surface.
+- `@schema-ide/react` — the `<SchemaIde />` React surface, built directly on MUI primitives.
 - `@schema-ide/server` — standalone Effect HTTP server for the OpenRouter proxy.
 - `@schema-ide/cli` — local filesystem CLI for validating consumer workspace schemas and printing diagnostics/routes/JSON Schema.
-- `@schema-ide/ui` — local UI primitives used by the React package.
 - `@schema-ide/onboarded-config` — first-party Onboarded account configuration schema, sample workspace, and embedded CLI bundle.
 - `@schema-ide/examples` — generated JS examples backed by neutral prompt eval, survey, and workflow files on disk.
 

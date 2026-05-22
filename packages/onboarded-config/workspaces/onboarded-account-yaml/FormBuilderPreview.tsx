@@ -1,20 +1,18 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import MuiCheckbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import Drawer from "@mui/material/Drawer";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect, { type SelectChangeEvent } from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { stringifyDocument } from "@schema-ide/core";
 import type { FormField, OnboardedFormConfig } from "@schema-ide/onboarded-config";
 import type { SchemaIdePreviewComponentProps } from "@schema-ide/react";
-import {
-  Badge,
-  Button,
-  Checkbox,
-  ScrollArea,
-  Select,
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Textarea,
-} from "@schema-ide/ui";
 
 type FormPage = OnboardedFormConfig["version"]["pages"][number];
 
@@ -57,7 +55,7 @@ export function FormBuilderPreview(props: SchemaIdePreviewComponentProps<Onboard
 
   if (!form) {
     return (
-      <ScrollArea className="min-h-0 flex-1">
+      <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
         <div className="grid max-w-5xl gap-4 p-4">
           <Panel title="Form preview" subtitle={props.file.path}>
             <div className="text-sm text-muted-foreground">
@@ -65,13 +63,13 @@ export function FormBuilderPreview(props: SchemaIdePreviewComponentProps<Onboard
             </div>
           </Panel>
         </div>
-      </ScrollArea>
+      </Box>
     );
   }
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
-      <ScrollArea className="h-full">
+      <Box className="h-full" sx={{ overflow: "auto" }}>
         <div className="grid max-w-5xl gap-4 p-4">
           <div className="rounded-lg border bg-muted/20 p-4">
             <div className="flex flex-wrap items-start gap-3">
@@ -83,24 +81,27 @@ export function FormBuilderPreview(props: SchemaIdePreviewComponentProps<Onboard
                 <div className="mt-1 font-mono text-xs text-muted-foreground">{form.id}</div>
               </div>
               {props.diagnostics.length ? (
-                <Badge variant="destructive" className="text-[10px]">
-                  {props.diagnostics.length} issue{props.diagnostics.length === 1 ? "" : "s"}
-                </Badge>
+                <Chip
+                  className="text-[10px]"
+                  color="error"
+                  label={`${props.diagnostics.length} issue${
+                    props.diagnostics.length === 1 ? "" : "s"
+                  }`}
+                  size="small"
+                />
               ) : (
-                <Badge variant="secondary" className="text-[10px]">
-                  Valid
-                </Badge>
+                <Chip className="text-[10px]" color="secondary" label="Valid" size="small" />
               )}
               <Button
-                size="sm"
-                variant="outline"
+                size="small"
+                variant="outlined"
                 disabled={props.readOnly}
                 onClick={() => setSheet({ type: "form" })}
               >
                 Edit form
               </Button>
               <Button
-                size="sm"
+                size="small"
                 disabled={props.readOnly}
                 onClick={() => setSheet({ type: "page", pageIndex: null })}
               >
@@ -160,7 +161,7 @@ export function FormBuilderPreview(props: SchemaIdePreviewComponentProps<Onboard
             </div>
           </Panel>
         </div>
-      </ScrollArea>
+      </Box>
 
       {sheet ? (
         <BuilderSheet title={sheetTitle(sheet)} onClose={() => setSheet(null)}>
@@ -235,13 +236,19 @@ function FormBuilderPage({
           <div className="mt-1 text-sm font-medium">{page.description ?? "Untitled page"}</div>
           <div className="mt-1 text-xs text-muted-foreground">{page.assignee}</div>
         </div>
-        <Button size="sm" variant="outline" disabled={readOnly} onClick={onEditPage}>
+        <Button size="small" variant="outlined" disabled={readOnly} onClick={onEditPage}>
           Edit page
         </Button>
-        <Button size="sm" variant="outline" disabled={readOnly} onClick={onAddField}>
+        <Button size="small" variant="outlined" disabled={readOnly} onClick={onAddField}>
           Add field
         </Button>
-        <Button size="sm" variant="ghost" disabled={readOnly} onClick={onDeletePage}>
+        <Button
+          size="small"
+          variant="text"
+          color="inherit"
+          disabled={readOnly}
+          onClick={onDeletePage}
+        >
           Delete
         </Button>
       </div>
@@ -289,21 +296,28 @@ function FormBuilderField({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs font-medium">{field.path}</span>
-            <Badge variant="outline" className="text-[10px]">
-              {field.type}
-            </Badge>
+            <Chip className="text-[10px]" label={field.type} size="small" variant="outlined" />
             {field.required ? (
-              <Badge variant="secondary" className="text-[10px]">
-                Required
-              </Badge>
+              <Chip className="text-[10px]" color="secondary" label="Required" size="small" />
             ) : null}
           </div>
           {label ? <div className="mt-2 text-sm">{label}</div> : null}
         </div>
-        <Button size="sm" variant="outline" disabled={readOnly} onClick={() => onEdit(fieldPath)}>
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={readOnly}
+          onClick={() => onEdit(fieldPath)}
+        >
           Edit
         </Button>
-        <Button size="sm" variant="ghost" disabled={readOnly} onClick={() => onDelete(fieldPath)}>
+        <Button
+          size="small"
+          variant="text"
+          color="inherit"
+          disabled={readOnly}
+          onClick={() => onDelete(fieldPath)}
+        >
           Delete
         </Button>
       </div>
@@ -358,12 +372,9 @@ function FieldControlPreview({ field }: { readonly field: FormField }) {
   }
   if (field.type === "checkbox") {
     return (
-      <Checkbox
-        checked={false}
-        disabled
+      <FormControlLabel
         label={fieldDisplayLabel(field) || field.path}
-        onCheckedChange={() => undefined}
-        size="small"
+        control={<MuiCheckbox checked={false} disabled size="small" />}
       />
     );
   }
@@ -534,7 +545,16 @@ function FieldSheet({
     <form className="grid gap-4" onSubmit={submit}>
       <TextInput label="Path" value={path} onChange={setPath} required />
       <SelectInput label="Type" value={type} values={fieldTypes} onChange={setType} />
-      <Checkbox checked={required} label="Required" onCheckedChange={setRequired} size="small" />
+      <FormControlLabel
+        label="Required"
+        control={
+          <MuiCheckbox
+            checked={required}
+            onChange={(event) => setRequired(event.target.checked)}
+            size="small"
+          />
+        }
+      />
       {type === "content" ? (
         <TextAreaInput label="Content" value={label} onChange={setLabel} rows={6} />
       ) : (
@@ -562,21 +582,41 @@ function BuilderSheet({
   readonly onClose: () => void;
 }) {
   return (
-    <Sheet open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <SheetContent aria-label={title}>
-        <SheetHeader className="h-12 flex-row items-center gap-3 px-4 py-0">
-          <SheetTitle className="min-w-0 flex-1 truncate">{title}</SheetTitle>
-          <Button size="sm" variant="ghost" onClick={onClose}>
+    <Drawer anchor="right" open onClose={onClose}>
+      <Box
+        aria-label={title}
+        component="section"
+        role="dialog"
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          maxWidth: 448,
+          minWidth: { xs: "100vw", sm: 448 },
+        }}
+      >
+        <Box
+          className="h-12 flex-row items-center gap-3 px-4 py-0"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            display: "flex",
+          }}
+        >
+          <Typography className="min-w-0 flex-1 truncate" component="h2" variant="subtitle1">
+            {title}
+          </Typography>
+          <Button size="small" variant="text" color="inherit" onClick={onClose}>
             Close
           </Button>
-        </SheetHeader>
-        <SheetBody>
-          <ScrollArea className="h-full">
+        </Box>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <Box className="h-full" sx={{ overflow: "auto" }}>
             <div className="p-4">{children}</div>
-          </ScrollArea>
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
+          </Box>
+        </Box>
+      </Box>
+    </Drawer>
   );
 }
 
@@ -655,7 +695,14 @@ function TextAreaInput({
   return (
     <label className={labelClass}>
       {label}
-      <Textarea value={value} onChange={(event) => onChange(event.target.value)} rows={rows} />
+      <TextField
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={rows}
+        fullWidth
+        multiline
+        size="small"
+      />
     </label>
   );
 }
@@ -674,13 +721,18 @@ function SelectInput({
   return (
     <div className={labelClass}>
       <span>{label}</span>
-      <Select
-        fullWidth
-        value={value}
-        onValueChange={onChange}
-        options={values.map((option) => ({ value: option, label: option }))}
-        size="sm"
-      />
+      <FormControl fullWidth size="small">
+        <MuiSelect
+          value={value}
+          onChange={(event: SelectChangeEvent<string>) => onChange(event.target.value)}
+        >
+          {values.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option}
+            </MenuItem>
+          ))}
+        </MuiSelect>
+      </FormControl>
     </div>
   );
 }

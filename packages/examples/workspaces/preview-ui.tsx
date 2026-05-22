@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Badge, ScrollArea } from "@schema-ide/ui";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 
 export function ExamplePreviewShell({
   icon,
@@ -15,7 +16,7 @@ export function ExamplePreviewShell({
   readonly children: ReactNode;
 }) {
   return (
-    <ScrollArea className="min-h-0 flex-1">
+    <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
       <div className="grid max-w-3xl gap-4 p-4">
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
           <div className="font-medium">This is a custom render.</div>
@@ -34,19 +35,20 @@ export function ExamplePreviewShell({
               ) : null}
             </div>
             {diagnostics ? (
-              <Badge variant="destructive" className="text-[10px]">
-                {diagnostics} issue{diagnostics === 1 ? "" : "s"}
-              </Badge>
+              <Chip
+                className="text-[10px]"
+                color="error"
+                label={`${diagnostics} issue${diagnostics === 1 ? "" : "s"}`}
+                size="small"
+              />
             ) : (
-              <Badge variant="secondary" className="text-[10px]">
-                Valid
-              </Badge>
+              <Chip className="text-[10px]" color="secondary" label="Valid" size="small" />
             )}
           </div>
         </div>
         {children}
       </div>
-    </ScrollArea>
+    </Box>
   );
 }
 
@@ -92,9 +94,7 @@ export function PillList({
       {values.length ? (
         <div className="flex flex-wrap gap-2">
           {values.map((value) => (
-            <Badge key={value} variant="outline">
-              {value}
-            </Badge>
+            <Chip key={value} label={value} size="small" variant="outlined" />
           ))}
         </div>
       ) : (

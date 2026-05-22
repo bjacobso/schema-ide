@@ -1,5 +1,12 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import Button from "@mui/material/Button";
+import CssBaseline from "@mui/material/CssBaseline";
+import FormControl from "@mui/material/FormControl";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect, { type SelectChangeEvent } from "@mui/material/Select";
+import { ThemeProvider } from "@mui/material/styles";
 import { createSchemaIdeChatAdapter } from "@schema-ide/agent";
 import {
   randomSchemaIdeExample,
@@ -11,27 +18,24 @@ import {
   createRpcWorkspaceClient,
   SchemaIdeWorkspaceView,
 } from "@schema-ide/react";
-import { Button, SchemaIdeThemeProvider, Select } from "@schema-ide/ui";
 import { Effect } from "effect";
 import { Moon, Sun } from "lucide-react";
 import { getPlaygroundPreviews } from "./previews";
+import { applyPlaygroundThemeMode, createPlaygroundTheme, type PlaygroundThemeMode } from "./theme";
 import "./styles.css";
 
-type PlaygroundTheme = "dark" | "light";
 type WorkspaceMode = "checking" | "local-filesystem" | "memory";
 
 const themeStorageKey = "schema-ide-playground-theme";
 
-function getInitialTheme(): PlaygroundTheme {
+function getInitialTheme(): PlaygroundThemeMode {
   const theme = document.documentElement.dataset["theme"];
   if (theme === "dark" || theme === "light") return theme;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function applyTheme(theme: PlaygroundTheme) {
-  document.documentElement.dataset["theme"] = theme;
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  document.documentElement.style.colorScheme = theme;
+function persistTheme(theme: PlaygroundThemeMode) {
+  applyPlaygroundThemeMode(theme);
   try {
     localStorage.setItem(themeStorageKey, theme);
   } catch {
@@ -43,7 +47,7 @@ function App() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("checking");
   const [example, setExample] = useState<SchemaIdeExample>(() => schemaIdeExamples[0]!);
   const [revision, setRevision] = useState(0);
-  const [theme, setTheme] = useState<PlaygroundTheme>(getInitialTheme);
+  const [theme, setTheme] = useState<PlaygroundThemeMode>(getInitialTheme);
   const apiBaseUrl = import.meta.env.VITE_SCHEMA_IDE_API_BASE_URL ?? "";
   const shouldProbeLocalWorkspace = apiBaseUrl === "";
   const chat = useMemo(
@@ -53,6 +57,7 @@ function App() {
       }),
     [apiBaseUrl],
   );
+  const muiTheme = useMemo(() => createPlaygroundTheme(theme), [theme]);
   const localWorkspace = useMemo(() => createRpcWorkspaceClient(apiBaseUrl), [apiBaseUrl]);
   const memoryWorkspaceClient = useMemo(
     () =>
@@ -93,13 +98,14 @@ function App() {
   const toggleTheme = () => {
     setTheme((current) => {
       const nextTheme = current === "dark" ? "light" : "dark";
-      applyTheme(nextTheme);
+      persistTheme(nextTheme);
       return nextTheme;
     });
   };
 
   return (
-    <SchemaIdeThemeProvider mode={theme}>
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
       <main className="flex h-svh min-h-0 flex-col bg-background text-foreground">
         <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
           <div>
@@ -113,33 +119,37 @@ function App() {
 
           {workspaceMode === "local-filesystem" ? null : (
             <>
-              <Select
-                value={example.id}
-                onValueChange={(value) => {
-                  const nextExample = schemaIdeExamples.find((candidate) => candidate.id === value);
-                  if (nextExample) loadExample(nextExample);
-                }}
-                className="ml-auto min-w-56"
-                aria-label="Schema IDE example"
-                disabled={workspaceMode === "checking"}
-                options={schemaIdeExamples.map((candidate) => ({
-                  value: candidate.id,
-                  label: candidate.name,
-                }))}
-                size="sm"
-              />
+              <FormControl className="ml-auto min-w-56" size="small">
+                <MuiSelect
+                  value={example.id}
+                  onChange={(event: SelectChangeEvent<string>) => {
+                    const nextExample = schemaIdeExamples.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    if (nextExample) loadExample(nextExample);
+                  }}
+                  inputProps={{ "aria-label": "Schema IDE example" }}
+                  disabled={workspaceMode === "checking"}
+                >
+                  {schemaIdeExamples.map((candidate) => (
+                    <MenuItem key={candidate.id} value={candidate.id}>
+                      {candidate.name}
+                    </MenuItem>
+                  ))}
+                </MuiSelect>
+              </FormControl>
 
               <Button
-                size="sm"
-                variant="outline"
+                size="small"
+                variant="outlined"
                 onClick={() => loadExample(randomSchemaIdeExample())}
                 disabled={workspaceMode === "checking"}
               >
                 Random
               </Button>
               <Button
-                size="sm"
-                variant="outline"
+                size="small"
+                variant="outlined"
                 onClick={() => loadExample(example)}
                 disabled={workspaceMode === "checking"}
               >
@@ -148,16 +158,16 @@ function App() {
             </>
           )}
 
-          <Button
-            size="icon"
-            variant="outline"
+          <IconButton
+            size="medium"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
             title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
             className={workspaceMode === "local-filesystem" ? "ml-auto" : undefined}
+            sx={{ border: 1, borderColor: "divider" }}
           >
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </Button>
+          </IconButton>
         </div>
 
         <div className="min-h-0 flex-1">
@@ -175,7 +185,7 @@ function App() {
           />
         </div>
       </main>
-    </SchemaIdeThemeProvider>
+    </ThemeProvider>
   );
 }
 
