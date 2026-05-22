@@ -11,7 +11,7 @@ import {
   createRpcWorkspaceClient,
   SchemaIdeWorkspaceView,
 } from "@schema-ide/react";
-import { Button, SchemaIdeThemeProvider } from "@schema-ide/ui";
+import { Button, SchemaIdeThemeProvider, Select } from "@schema-ide/ui";
 import { Effect } from "effect";
 import { Moon, Sun } from "lucide-react";
 import { getPlaygroundPreviews } from "./previews";
@@ -113,24 +113,21 @@ function App() {
 
           {workspaceMode === "local-filesystem" ? null : (
             <>
-              <select
+              <Select
                 value={example.id}
-                onChange={(event) => {
-                  const nextExample = schemaIdeExamples.find(
-                    (candidate) => candidate.id === event.target.value,
-                  );
+                onValueChange={(value) => {
+                  const nextExample = schemaIdeExamples.find((candidate) => candidate.id === value);
                   if (nextExample) loadExample(nextExample);
                 }}
-                className="ml-auto h-8 min-w-56 rounded-md border border-border bg-background px-2 text-xs"
+                className="ml-auto min-w-56"
                 aria-label="Schema IDE example"
                 disabled={workspaceMode === "checking"}
-              >
-                {schemaIdeExamples.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.name}
-                  </option>
-                ))}
-              </select>
+                options={schemaIdeExamples.map((candidate) => ({
+                  value: candidate.id,
+                  label: candidate.name,
+                }))}
+                size="sm"
+              />
 
               <Button
                 size="sm"

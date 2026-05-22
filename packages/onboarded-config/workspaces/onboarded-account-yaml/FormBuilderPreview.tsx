@@ -5,7 +5,9 @@ import type { SchemaIdePreviewComponentProps } from "@schema-ide/react";
 import {
   Badge,
   Button,
+  Checkbox,
   ScrollArea,
+  Select,
   Sheet,
   SheetBody,
   SheetContent,
@@ -356,10 +358,13 @@ function FieldControlPreview({ field }: { readonly field: FormField }) {
   }
   if (field.type === "checkbox") {
     return (
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" disabled />
-        {fieldDisplayLabel(field) || field.path}
-      </label>
+      <Checkbox
+        checked={false}
+        disabled
+        label={fieldDisplayLabel(field) || field.path}
+        onCheckedChange={() => undefined}
+        size="small"
+      />
     );
   }
   return <input className={inputClass} disabled placeholder={field.type} />;
@@ -529,14 +534,7 @@ function FieldSheet({
     <form className="grid gap-4" onSubmit={submit}>
       <TextInput label="Path" value={path} onChange={setPath} required />
       <SelectInput label="Type" value={type} values={fieldTypes} onChange={setType} />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          checked={required}
-          onChange={(event) => setRequired(event.target.checked)}
-          type="checkbox"
-        />
-        Required
-      </label>
+      <Checkbox checked={required} label="Required" onCheckedChange={setRequired} size="small" />
       {type === "content" ? (
         <TextAreaInput label="Content" value={label} onChange={setLabel} rows={6} />
       ) : (
@@ -674,20 +672,16 @@ function SelectInput({
   readonly onChange: (value: string) => void;
 }) {
   return (
-    <label className={labelClass}>
-      {label}
-      <select
-        className={inputClass}
+    <div className={labelClass}>
+      <span>{label}</span>
+      <Select
+        fullWidth
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {values.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
+        onValueChange={onChange}
+        options={values.map((option) => ({ value: option, label: option }))}
+        size="sm"
+      />
+    </div>
   );
 }
 

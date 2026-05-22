@@ -44,7 +44,7 @@ import {
   type WorkspaceRevisionMetadata,
 } from "@schema-ide/core";
 import type { SchemaIdeDocumentFormat, SourceFile } from "@schema-ide/core";
-import { Badge, Button, ScrollArea, Textarea } from "@schema-ide/ui";
+import { Badge, Button, Checkbox, ScrollArea, Select, Textarea, ToggleGroup } from "@schema-ide/ui";
 import { getSchemaIdeFileDiagnosticCounts } from "./diagnostics";
 import {
   resolveSchemaIdePreview,
@@ -662,39 +662,29 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
                 {selectedFileKindLabel}
               </Badge>
               {!selectedIsPdf ? (
-                <div className="flex rounded-md border p-0.5">
-                  <Button
-                    size="sm"
-                    variant={editorMode === "code" ? "secondary" : "ghost"}
-                    className="h-6 px-2 text-[11px]"
-                    onClick={() => setEditorMode("code")}
-                  >
-                    Code
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={editorMode === "preview" ? "secondary" : "ghost"}
-                    className="h-6 px-2 text-[11px]"
-                    onClick={() => setEditorMode("preview")}
-                    disabled={!selectedFile}
-                  >
-                    Preview
-                  </Button>
-                </div>
+                <ToggleGroup
+                  aria-label="Editor mode"
+                  onValueChange={(value) => setEditorMode(value as SchemaIdeEditorMode)}
+                  options={[
+                    { value: "code", label: "Code" },
+                    { value: "preview", label: "Preview", disabled: !selectedFile },
+                  ]}
+                  size="sm"
+                  value={editorMode}
+                />
               ) : null}
               {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
-                <select
+                <Select
                   value={previewResolution.selected.id}
-                  onChange={(event) => setSelectedPreviewId(event.target.value)}
-                  className="h-7 max-w-40 rounded-md border bg-background px-2 text-xs"
+                  onValueChange={setSelectedPreviewId}
+                  className="max-w-40"
                   aria-label="Preview"
-                >
-                  {previewResolution.previews.map((preview) => (
-                    <option key={preview.id} value={preview.id}>
-                      {preview.label}
-                    </option>
-                  ))}
-                </select>
+                  options={previewResolution.previews.map((preview) => ({
+                    value: preview.id,
+                    label: preview.label,
+                  }))}
+                  size="sm"
+                />
               ) : null}
               {selectedIsDirty ? (
                 <Badge variant="secondary" className="text-[10px]">
@@ -815,19 +805,17 @@ function FormatSelect({
   readonly disabled: boolean;
 }) {
   return (
-    <select
+    <Select
       value={value}
       disabled={disabled}
-      onChange={(event) => onChange(event.target.value as SchemaIdeDocumentFormat)}
-      className="h-8 rounded-md border bg-background px-2 text-xs"
+      onValueChange={(nextValue) => onChange(nextValue as SchemaIdeDocumentFormat)}
       aria-label="Document format"
-    >
-      {allowedFormats.map((format) => (
-        <option key={format} value={format}>
-          {format.toUpperCase()}
-        </option>
-      ))}
-    </select>
+      options={allowedFormats.map((format) => ({
+        value: format,
+        label: format.toUpperCase(),
+      }))}
+      size="sm"
+    />
   );
 }
 
@@ -1078,19 +1066,18 @@ function SchemaChatPanel({
         <Bot className="size-4" />
         <span className="text-sm font-medium">Chat</span>
         {chat.models ? (
-          <select
+          <Select
             value={model}
-            onChange={(event) => setModel(event.target.value)}
+            onValueChange={setModel}
             disabled={pending}
-            className="ml-auto h-7 max-w-36 rounded border bg-background px-2 text-xs"
+            className="ml-auto max-w-36"
             aria-label="Chat model"
-          >
-            {chat.models.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.label}
-              </option>
-            ))}
-          </select>
+            options={chat.models.map((candidate) => ({
+              value: candidate.id,
+              label: candidate.label,
+            }))}
+            size="sm"
+          />
         ) : null}
       </div>
       <ScrollArea className="min-h-0 flex-1">
@@ -1140,15 +1127,14 @@ function SchemaChatPanel({
           className="mb-2 min-h-20 resize-none text-sm"
         />
         <div className="flex justify-end gap-2">
-          <label className="mr-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={planMode}
-              disabled={pending}
-              onChange={(event) => setPlanMode(event.target.checked)}
-            />
-            Plan
-          </label>
+          <Checkbox
+            checked={planMode}
+            className="mr-auto"
+            disabled={pending}
+            label="Plan"
+            onCheckedChange={setPlanMode}
+            size="small"
+          />
           {pending ? (
             <Button variant="outline" size="sm" onClick={() => handleRef.current?.cancel()}>
               Cancel

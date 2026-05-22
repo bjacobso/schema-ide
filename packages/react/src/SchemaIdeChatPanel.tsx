@@ -15,7 +15,7 @@ import type {
   SchemaIdeToolRuntime,
 } from "@schema-ide/agent";
 import type { SchemaIdeReflection } from "@schema-ide/core";
-import { Badge, Button, ScrollArea, Textarea } from "@schema-ide/ui";
+import { Badge, Button, Checkbox, ScrollArea, Select, Textarea } from "@schema-ide/ui";
 
 export interface SchemaIdeChatPanelProps {
   readonly chat: SchemaIdeChatAdapter;
@@ -96,19 +96,18 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
         <Bot className="size-4" />
         <span className="text-sm font-medium">Chat</span>
         {chat.models ? (
-          <select
+          <Select
             value={model}
-            onChange={(event) => setModel(event.target.value)}
+            onValueChange={setModel}
             disabled={pending}
-            className="ml-auto h-7 max-w-36 rounded border bg-background px-2 text-xs"
+            className="ml-auto max-w-36"
             aria-label="Chat model"
-          >
-            {chat.models.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {candidate.label}
-              </option>
-            ))}
-          </select>
+            options={chat.models.map((candidate) => ({
+              value: candidate.id,
+              label: candidate.label,
+            }))}
+            size="sm"
+          />
         ) : null}
       </div>
       <ScrollArea className="min-h-0 flex-1">
@@ -158,15 +157,14 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
           className="mb-2 min-h-20 resize-none text-sm"
         />
         <div className="flex justify-end gap-2">
-          <label className="mr-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={planMode}
-              disabled={pending}
-              onChange={(event) => setPlanMode(event.target.checked)}
-            />
-            Plan
-          </label>
+          <Checkbox
+            checked={planMode}
+            className="mr-auto"
+            disabled={pending}
+            label="Plan"
+            onCheckedChange={setPlanMode}
+            size="small"
+          />
           {pending ? (
             <Button variant="outline" size="sm" onClick={() => handleRef.current?.cancel()}>
               Cancel

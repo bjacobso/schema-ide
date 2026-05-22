@@ -16,7 +16,7 @@ import type {
   WorkspaceRouteMap,
 } from "@schema-ide/core";
 import type { SchemaIdeWorkspaceService } from "@schema-ide/protocol";
-import { Badge, Button, ScrollArea } from "@schema-ide/ui";
+import { Badge, Button, ScrollArea, Select, ToggleGroup } from "@schema-ide/ui";
 import { Effect } from "effect";
 import { getSchemaIdeFileDiagnosticCounts } from "./diagnostics";
 import {
@@ -171,39 +171,29 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                 PDF
               </Badge>
             ) : (
-              <div className="flex rounded-md border p-0.5">
-                <Button
-                  size="sm"
-                  variant={editorMode === "code" ? "secondary" : "ghost"}
-                  className="h-6 px-2 text-[11px]"
-                  onClick={() => setEditorMode("code")}
-                >
-                  Code
-                </Button>
-                <Button
-                  size="sm"
-                  variant={editorMode === "preview" ? "secondary" : "ghost"}
-                  className="h-6 px-2 text-[11px]"
-                  onClick={() => setEditorMode("preview")}
-                  disabled={!selectedFile}
-                >
-                  Preview
-                </Button>
-              </div>
+              <ToggleGroup
+                aria-label="Editor mode"
+                onValueChange={(value) => setEditorMode(value as SchemaIdeEditorMode)}
+                options={[
+                  { value: "code", label: "Code" },
+                  { value: "preview", label: "Preview", disabled: !selectedFile },
+                ]}
+                size="sm"
+                value={editorMode}
+              />
             )}
             {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
-              <select
+              <Select
                 value={previewResolution.selected.id}
-                onChange={(event) => setSelectedPreviewId(event.target.value)}
-                className="h-7 max-w-40 rounded-md border bg-background px-2 text-xs"
+                onValueChange={setSelectedPreviewId}
+                className="max-w-40"
                 aria-label="Preview"
-              >
-                {previewResolution.previews.map((preview) => (
-                  <option key={preview.id} value={preview.id}>
-                    {preview.label}
-                  </option>
-                ))}
-              </select>
+                options={previewResolution.previews.map((preview) => ({
+                  value: preview.id,
+                  label: preview.label,
+                }))}
+                size="sm"
+              />
             ) : null}
             {selectedHasConflict ? (
               <Badge
