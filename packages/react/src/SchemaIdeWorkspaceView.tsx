@@ -660,7 +660,7 @@ function SchemaIdeDirectoryDetails({
 
   return (
     <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
-      <div className="grid max-w-4xl gap-4 p-4">
+      <div className="mx-auto grid max-w-5xl gap-4 p-4">
         <div>
           <div className="text-sm font-medium">
             {registration?.label ?? labelForPath(location.path)}
