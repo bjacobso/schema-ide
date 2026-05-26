@@ -91,6 +91,7 @@ function App() {
       : workspaceMode === "local-filesystem"
         ? localWorkspace
         : memoryWorkspaceClient;
+  const workspaceModeDescription = workspaceModeLabel(workspaceMode);
 
   useEffect(() => {
     if (hostedWorkspaceId) {
@@ -177,7 +178,9 @@ function App() {
         <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-3 border-b border-border bg-secondary px-4 py-2">
           <div className="min-w-0">
             <div className="text-sm font-semibold">Schema IDE Playground</div>
-            <div className="text-xs text-muted-foreground">{workspaceModeLabel(workspaceMode)}</div>
+            {workspaceModeDescription ? (
+              <div className="text-xs text-muted-foreground">{workspaceModeDescription}</div>
+            ) : null}
           </div>
 
           <div className="ml-auto flex min-w-0 items-center gap-3 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:flex-wrap">
@@ -306,7 +309,7 @@ function workspaceModeLabel(mode: WorkspaceMode): string {
     case "local-filesystem":
       return "Local filesystem workspace";
     case "cloudflare":
-      return "Cloudflare hosted workspace";
+      return "";
     case "memory":
       return "Browser memory workspace";
   }
