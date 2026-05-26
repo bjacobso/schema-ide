@@ -106,9 +106,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
   showDebug = true,
   previews = [],
   previewNavigation = [],
-  defaultMode = "code",
 }: SchemaIdeWorkspaceViewProps<Routes>) {
-  const [editorMode, setEditorMode] = useState<SchemaIdeEditorMode>(defaultMode);
   const [workspacePanel, setWorkspacePanel] = useState<SchemaIdeWorkspacePanel>(() =>
     previews.length || previewNavigation.length ? "preview" : "files",
   );
@@ -377,38 +375,6 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                     <Chip label="Directory" size="small" variant="outlined" />
                   ) : selectedIsPdf ? (
                     <Chip label="PDF" size="small" variant="outlined" />
-                  ) : (
-                    <MuiToggleButtonGroup
-                      aria-label="Editor mode"
-                      exclusive
-                      onChange={(_, value: SchemaIdeEditorMode | null) => {
-                        if (value) setEditorMode(value);
-                      }}
-                      size="small"
-                      value={editorMode}
-                    >
-                      <MuiToggleButton value="code">Code</MuiToggleButton>
-                      <MuiToggleButton value="preview" disabled={!selectedFile}>
-                        Preview
-                      </MuiToggleButton>
-                    </MuiToggleButtonGroup>
-                  )}
-                  {!selectedIsPdf && previewResolution && previewResolution.previews.length > 1 ? (
-                    <FormControl className="max-w-40" size="small">
-                      <MuiSelect
-                        value={previewResolution.selected.id}
-                        onChange={(event: SelectChangeEvent<string>) =>
-                          setSelectedPreviewId(event.target.value)
-                        }
-                        inputProps={{ "aria-label": "Preview" }}
-                      >
-                        {previewResolution.previews.map((preview) => (
-                          <MenuItem key={preview.id} value={preview.id}>
-                            {preview.label}
-                          </MenuItem>
-                        ))}
-                      </MuiSelect>
-                    </FormControl>
                   ) : null}
                   {activeLocation?.type === "directory" ? null : selectedHasConflict ? (
                     <Chip
@@ -464,22 +430,6 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                   />
                 ) : selectedFile && selectedIsPdf ? (
                   <SchemaIdePdfFileViewer file={selectedFile} />
-                ) : editorMode === "preview" && selectedFile ? (
-                  <SchemaIdePreviewView
-                    file={selectedFile}
-                    files={files}
-                    format={selectedFormat}
-                    reflection={reflection as SchemaIdeReflection}
-                    resolution={previewResolution}
-                    previews={
-                      previews as unknown as readonly SchemaIdePreviewRegistration<
-                        unknown,
-                        string
-                      >[]
-                    }
-                    readOnly={readOnly}
-                    onChange={store.updateActiveFile}
-                  />
                 ) : (
                   <SchemaCodeMirrorEditor
                     value={selectedFile?.content ?? ""}
