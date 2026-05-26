@@ -76,14 +76,11 @@ function makeWorkspaceRoutesLayer(
 ): Layer.Layer<never, never, HttpRouter.HttpRouter> {
   if (!options.workspace) return Layer.empty;
 
-  const makeLayer = (path: "/v1/workspace/rpc" | "/v1/workspace/rpc/") =>
-    RpcServer.layerHttp({
-      group: SchemaIdeWorkspaceRpcGroup,
-      path,
-      protocol: options.workspaceRpcProtocol ?? "http",
-    });
-
-  return Layer.mergeAll(makeLayer("/v1/workspace/rpc"), makeLayer("/v1/workspace/rpc/")).pipe(
+  return RpcServer.layerHttp({
+    group: SchemaIdeWorkspaceRpcGroup,
+    path: "/v1/workspace/rpc",
+    protocol: options.workspaceRpcProtocol ?? "http",
+  }).pipe(
     Layer.provide([
       makeSchemaIdeWorkspaceRpcLayer(options.workspace),
       RpcSerialization.layerNdjson,
