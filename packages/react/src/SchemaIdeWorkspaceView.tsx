@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import Box from "@mui/material/Box";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
@@ -512,14 +513,27 @@ function PreviewBreadcrumbs({
 
   const crumbs = getBreadcrumbs({ files, location, navigation });
   return (
-    <div className="flex min-w-0 items-center gap-1 text-sm">
+    <Breadcrumbs
+      aria-label="breadcrumb"
+      className="min-w-0 text-sm"
+      maxItems={4}
+      sx={{
+        minWidth: 0,
+        "& ol": {
+          flexWrap: "nowrap",
+          minWidth: 0,
+        },
+        "& li": {
+          minWidth: 0,
+        },
+      }}
+    >
       {crumbs.map((crumb, index) => {
         const last = index === crumbs.length - 1;
         return (
-          <div key={`${crumb.type}:${crumb.path}`} className="flex min-w-0 items-center gap-1">
-            {index > 0 ? <span className="text-muted-foreground">/</span> : null}
+          <span key={`${crumb.type}:${crumb.path}`} className="min-w-0">
             {last ? (
-              <span className="min-w-0 truncate font-medium">{crumb.label}</span>
+              <span className="block min-w-0 truncate font-medium">{crumb.label}</span>
             ) : (
               <Button
                 color="inherit"
@@ -533,10 +547,10 @@ function PreviewBreadcrumbs({
                 <span className="truncate">{crumb.label}</span>
               </Button>
             )}
-          </div>
+          </span>
         );
       })}
-    </div>
+    </Breadcrumbs>
   );
 }
 
