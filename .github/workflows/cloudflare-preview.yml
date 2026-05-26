@@ -1,0 +1,65 @@
+name: Cloudflare Preview
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: cloudflare-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm alchemy deploy --stage pr-${{ github.event.pull_request.number }} --yes
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+
+  destroy:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm alchemy destroy --stage pr-${{ github.event.pull_request.number }} --yes
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

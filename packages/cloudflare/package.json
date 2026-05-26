@@ -39,12 +39,12 @@
     "@schema-ide/server": "workspace:*",
     "effect": "catalog:"
   },
-  "peerDependencies": {
-    "alchemy": "^2.0.0-beta.40"
-  },
   "devDependencies": {
     "alchemy": "2.0.0-beta.40",
     "tsdown": "catalog:",
     "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "alchemy": "^2.0.0-beta.40"
   }
 }

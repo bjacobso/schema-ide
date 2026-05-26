@@ -1,12 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  entry: [
-    "src/index.ts",
-    "src/alchemy.ts",
-    "src/worker-runtime.ts",
-    "src/workspace-object.ts",
-  ],
+  entry: ["src/index.ts", "src/alchemy.ts", "src/worker-runtime.ts", "src/workspace-object.ts"],
   format: "esm",
   target: "esnext",
   deps: {

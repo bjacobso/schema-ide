@@ -6,8 +6,9 @@ Add a hosted Cloudflare workspace mode, deployed with Alchemy v2, where a
 browser can open a dedicated Schema IDE workspace by UUID:
 
 ```text
-/                 create or choose a workspace
-/w/:workspaceId   open the IDE for that workspace
+/                    in-memory playground demo
+/demo                create a Durable Object backed demo workspace
+/demo/:workspaceId   open the Durable Object backed demo workspace
 ```
 
 Each workspace should be isolated from every other workspace, support the same
@@ -45,17 +46,53 @@ SchemaIdeWorkspaceView
   -> SchemaIdeWorkspaceService
      -> createMemoryWorkspaceClient(...)
      -> createRpcWorkspaceClient("") for local filesystem server
-     -> createRpcWorkspaceClient("/v1/workspaces/:workspaceId") for Cloudflare
+     -> createRpcWorkspaceClient("/v1/demo-workspaces/:workspaceId/rpc") for Cloudflare
 ```
 
 Mode selection should be explicit:
 
-- Local dev with `pnpm dev` can keep probing the local filesystem RPC endpoint.
-- Static or hosted demo without a workspace UUID can keep using browser memory.
-- Hosted Cloudflare links under `/w/:workspaceId` should always use the remote
-  Durable Object workspace.
+- `/` is always the browser memory demo in Cloudflare deployments.
+- `/demo` is a launcher for creating a persisted demo workspace from a
+  registered schema/template.
+- `/demo/:workspaceId` always uses the remote Durable Object workspace.
+- Local dev with `pnpm dev` can keep probing the local filesystem RPC endpoint
+  only when the app is not on a hosted demo route.
 - Future product wrappers can choose a mode from config instead of changing the
   editor internals.
+
+Keep `/w/:workspaceId` only as a backwards-compatible alias or redirect if it
+has already been shared. New hosted demo links should use `/demo/:workspaceId`.
+
+## Template Registry Strategy
+
+The durable demo launcher needs a way to choose the schema for a new workspace.
+Start with a small workspace template registry instead of a full plugin system:
+
+```ts
+export interface WorkspaceTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string | undefined;
+  readonly schema: SchemaIdeInputSchema;
+  readonly files: readonly SourceFile[];
+  readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
+}
+```
+
+The MVP registry can wrap the existing `schemaIdeExamples`. Consumers deploying
+their own Cloudflare version should be able to provide a different registry to
+both the frontend launcher and the Cloudflare runtime:
+
+```ts
+createSchemaIdeCloudflareDemo({
+  templates: [workflowTemplate, onboardedConfigTemplate, customerTemplate],
+});
+```
+
+The Durable Object stores the selected `templateId` in metadata. On load,
+`/demo/:workspaceId` fetches workspace metadata and resolves that `templateId`
+against the same registry so validation, reflection, previews, and default files
+stay consistent.
 
 ## Recommended MVP
 
@@ -63,8 +100,8 @@ Use one SQLite-backed Durable Object per workspace UUID.
 
 ```text
 Browser
-  -> /w/:workspaceId
-  -> createRpcWorkspaceClient("/v1/workspaces/:workspaceId")
+  -> /demo/:workspaceId
+  -> createRpcWorkspaceClient("/v1/demo-workspaces/:workspaceId/rpc")
   -> Worker route
   -> Durable Object idFromName(workspaceId)
   -> workspace files + revision in Durable Object storage
@@ -153,23 +190,26 @@ thin app-specific wrapper.
 ## MVP User Flow
 
 1. User lands on `/`.
-2. Landing page shows a minimal workspace creation form:
+2. Browser renders the in-memory playground demo. No Durable Object state is
+   created for `/`.
+3. User opens `/demo`.
+4. Launcher shows a minimal durable demo creation form:
    - template/example selector
    - "Create workspace" button
-3. Browser calls `POST /v1/workspaces`.
-4. Worker creates a random UUID, initializes the matching Durable Object from
+5. Browser calls `POST /v1/demo-workspaces`.
+6. Worker creates a random UUID, initializes the matching Durable Object from
    the selected template, and returns:
 
 ```json
 {
   "workspaceId": "8b6f53d5-0c3e-4b8e-8f33-1c0fb57fbe4a",
-  "url": "/w/8b6f53d5-0c3e-4b8e-8f33-1c0fb57fbe4a"
+  "url": "/demo/8b6f53d5-0c3e-4b8e-8f33-1c0fb57fbe4a"
 }
 ```
 
-5. Browser redirects to `/w/:workspaceId`.
-6. IDE connects to `/v1/workspaces/:workspaceId/rpc`.
-7. The existing editor reads capabilities, snapshot, diagnostics, and applies
+7. Browser redirects to `/demo/:workspaceId`.
+8. IDE connects to `/v1/demo-workspaces/:workspaceId/rpc`.
+9. The existing editor reads capabilities, snapshot, diagnostics, and applies
    changes through the RPC client.
 
 ## API Shape
@@ -178,9 +218,10 @@ Keep the hosted workspace API narrow and namespaced so it can coexist with the
 existing local filesystem RPC path:
 
 ```text
-POST /v1/workspaces
-GET  /v1/workspaces/:workspaceId
-POST /v1/workspaces/:workspaceId/rpc
+GET  /v1/demo-templates
+POST /v1/demo-workspaces
+GET  /v1/demo-workspaces/:workspaceId
+POST /v1/demo-workspaces/:workspaceId/rpc
 ```
 
 Keep the current local filesystem route unchanged:
@@ -193,10 +234,28 @@ That gives the frontend two RPC base URLs:
 
 ```text
 local filesystem: /v1/workspace
-Cloudflare UUID:  /v1/workspaces/:workspaceId
+Cloudflare UUID:  /v1/demo-workspaces/:workspaceId/rpc
 ```
 
-`POST /v1/workspaces`
+`GET /v1/demo-templates`
+
+```json
+[
+  {
+    "id": "workflow-json",
+    "name": "Workflow JSON",
+    "description": "A JSON workflow example.",
+    "defaultFormat": "json"
+  }
+]
+```
+
+Do not return the full schema from the public template list unless there is a
+specific product need. The browser bundle can already contain the templates it
+needs for the stock playground; this endpoint exists so customized Cloudflare
+deployments can advertise their registered template IDs and display metadata.
+
+`POST /v1/demo-workspaces`
 
 ```json
 {
@@ -204,18 +263,20 @@ Cloudflare UUID:  /v1/workspaces/:workspaceId
 }
 ```
 
-`GET /v1/workspaces/:workspaceId`
+`GET /v1/demo-workspaces/:workspaceId`
 
 ```json
 {
   "workspaceId": "8b6f53d5-0c3e-4b8e-8f33-1c0fb57fbe4a",
+  "templateId": "workflow-json",
+  "title": "Workflow JSON",
   "createdAt": "2026-05-26T00:00:00.000Z",
   "updatedAt": "2026-05-26T00:00:00.000Z",
   "revision": 3
 }
 ```
 
-`POST /v1/workspaces/:workspaceId/rpc`
+`POST /v1/demo-workspaces/:workspaceId/rpc`
 
 Use the existing `SchemaIdeWorkspaceRpcGroup`:
 
@@ -294,14 +355,17 @@ The front Worker should own:
 
 Add a hosted mode to the playground shell without removing the existing modes:
 
-- `/` renders the create-workspace landing view when hosted workspace mode is
-  enabled.
-- `/w/:workspaceId` renders `SchemaIdeWorkspaceView`.
+- `/` renders `SchemaIdeWorkspaceView` against browser memory only in Cloudflare
+  deployments.
+- `/demo` renders the durable demo launcher with a registered template/schema
+  selector.
+- `/demo/:workspaceId` renders `SchemaIdeWorkspaceView` against the matching
+  Durable Object workspace.
 - The workspace client uses
-  `createRpcWorkspaceClient("/v1/workspaces/:workspaceId")`.
-- Browser memory examples remain available for local/static demo fallback.
-- Local filesystem probing remains available when the app is served next to a
-  local `schema-ide serve` process.
+  `createRpcWorkspaceClient("", "/v1/demo-workspaces/:workspaceId/rpc")`.
+- Browser memory examples remain available as the first-viewport demo at `/`.
+- Local filesystem probing remains available only for local development routes,
+  not for Cloudflare production `/` or `/demo/*` routes.
 
 No editor internals should need to know whether the backing store is local,
 memory, or Cloudflare.
@@ -309,8 +373,12 @@ memory, or Cloudflare.
 Suggested mode resolver:
 
 ```text
-if URL matches /w/:workspaceId:
+if URL matches /demo/:workspaceId:
   use Cloudflare remote workspace RPC
+else if URL matches /demo:
+  render durable demo launcher
+else if Cloudflare deployment:
+  use browser memory workspace
 else if local filesystem RPC probe succeeds:
   use local filesystem workspace
 else:
@@ -321,24 +389,24 @@ else:
 
 Keep Cloudflare-specific code out of generic React and core packages.
 
-Suggested files:
+Current package shape:
 
 ```text
-alchemy/schema-ide-api-worker-runtime.ts
-alchemy/schema-ide-workspace-object.ts
-alchemy/schema-ide-cloudflare-stack.ts
-packages/server/src/cloudflare-workspace-routes.ts
-packages/server/src/cloudflare-workspace-service.ts
+packages/cloudflare/src/workspace-object.ts
+packages/cloudflare/src/worker-runtime.ts
+packages/cloudflare/src/alchemy.ts
+packages/cloudflare/src/index.ts
 ```
 
-If Worker-only imports make `packages/server` harder to build for Node, keep the
-Durable Object implementation in `alchemy/` first and extract a package only
-after the route shape stabilizes.
+`@schema-ide/cloudflare` should export:
 
-Because Alchemy v2 Durable Objects are defined as resource classes, the first
-implementation can keep the object class in `alchemy/` and call package-level
-core/protocol functions from there. Move reusable pieces into `packages/server`
-only after Node builds and Worker builds both stay clean.
+- the `SchemaIdeWorkspaceObject` Durable Object class
+- hosted workspace route helpers
+- Alchemy v2 helpers for creating the Durable Object namespace and Worker
+- configuration hooks for route prefixes, binding names, and template registries
+
+The root `alchemy/` files should stay thin app-specific consumers of this
+package.
 
 ## Implementation Phases
 
@@ -347,15 +415,16 @@ only after Node builds and Worker builds both stay clean.
 - Move the Cloudflare deployment path to Alchemy v2 patterns.
 - Add Durable Object binding and migration to the Cloudflare deployment.
 - Add `WorkspaceObject` Durable Object class.
-- Add `POST /v1/workspaces`.
-- Add `GET /v1/workspaces/:workspaceId`.
+- Add `GET /v1/demo-templates`.
+- Add `POST /v1/demo-workspaces`.
+- Add `GET /v1/demo-workspaces/:workspaceId`.
 - Initialize new workspaces from bundled examples.
 - Return UUID and workspace URL.
 - Keep existing memory demo and local filesystem server behavior unchanged.
 
 ### Phase 2: Workspace RPC
 
-- Route `/v1/workspaces/:workspaceId/rpc` to the matching Durable Object.
+- Route `/v1/demo-workspaces/:workspaceId/rpc` to the matching Durable Object.
 - Implement `SchemaIdeWorkspaceService` against Durable Object storage.
 - Reuse existing change request and snapshot DTOs.
 - Mark capabilities as:
@@ -380,9 +449,10 @@ Set `watch` to `true` only after streaming or WebSockets are verified.
 ### Phase 3: Frontend Routing
 
 - Add create-workspace landing page.
-- Add `/w/:workspaceId` route.
+- Add `/demo` launcher route.
+- Add `/demo/:workspaceId` editor route.
 - Connect the IDE to the workspace-specific RPC base URL.
-- Preserve the current browser memory mode for static examples.
+- Preserve browser memory mode at `/`.
 - Preserve the current local filesystem probe and label.
 
 ### Phase 4: Tests
@@ -395,7 +465,7 @@ Set `watch` to `true` only after streaming or WebSockets are verified.
   is available.
 - Playwright smoke test:
   - create workspace
-  - redirect to `/w/:uuid`
+  - redirect to `/demo/:uuid`
   - edit a file
   - refresh
   - confirm the edit persists

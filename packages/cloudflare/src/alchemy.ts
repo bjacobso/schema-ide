@@ -8,8 +8,9 @@ export interface SchemaIdeWorkspaceNamespaceOptions {
   readonly className?: string | undefined;
 }
 
-export interface SchemaIdeApiWorkerOptions<Bindings extends Cloudflare.WorkerBindingProps = {}>
-  extends Omit<Cloudflare.WorkerProps<Bindings>, "main" | "env" | "bindings"> {
+export interface SchemaIdeApiWorkerOptions<
+  Bindings extends Cloudflare.WorkerBindingProps = {},
+> extends Omit<Cloudflare.WorkerProps<Bindings>, "main" | "env" | "bindings"> {
   readonly main: string;
   readonly env?: NonNullable<Cloudflare.WorkerProps["env"]>;
   readonly bindings?: Bindings;
