@@ -10,6 +10,7 @@
     "dev:playground": "pnpm --dir apps/playground dev",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "cloudflare:cleanup": "node scripts/cleanup-cloudflare-previews.mjs",
     "playground:build": "pnpm --dir apps/playground build",
     "playground:e2e": "pnpm --dir apps/playground test:e2e",
     "playground:e2e:update": "pnpm --dir apps/playground test:e2e:update",

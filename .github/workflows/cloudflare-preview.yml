@@ -6,7 +6,6 @@ on:
       - opened
       - synchronize
       - reopened
-      - closed
 
 permissions:
   contents: read
@@ -56,36 +55,3 @@ jobs:
           GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
-
-  destroy:
-    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - id: preview-secrets
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          if [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping Cloudflare preview destroy because CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN is not configured."
-          fi
-
-      - run: pnpm alchemy destroy --stage pr-${{ github.event.pull_request.number }} --yes
-        if: steps.preview-secrets.outputs.enabled == 'true'
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
