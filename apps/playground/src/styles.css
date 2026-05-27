@@ -81,6 +81,14 @@
     --sidebar-accent-foreground: #1c2127;
     --sidebar-border: #d4dce7;
     --sidebar-ring: #4b8fd8;
+    --schema-ide-app-header-min-height: 3rem;
+    --schema-ide-app-header-padding-y: 0.5rem;
+    --schema-ide-content-padding: 1rem;
+    --schema-ide-control-height: 28px;
+    --schema-ide-debug-toolbar-height: 2.25rem;
+    --schema-ide-gap: 0.75rem;
+    --schema-ide-panel-padding: 0.75rem;
+    --schema-ide-toolbar-height: 2.5rem;
   }
 
   :root[data-theme="dark"],
