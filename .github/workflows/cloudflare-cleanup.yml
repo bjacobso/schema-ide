@@ -37,8 +37,6 @@ jobs:
           node-version: 22.22.2
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-
       - name: Check Cloudflare secrets
         id: cloudflare-secrets
         env:
@@ -51,6 +49,32 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping Cloudflare preview cleanup because CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN is not configured."
           fi
+
+      - name: Verify Cloudflare credentials
+        if: steps.cloudflare-secrets.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if ! verify_response="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/user/tokens/verify")"; then
+            echo "::error::CLOUDFLARE_API_TOKEN was rejected by Cloudflare. Recreate the token and update the GitHub secret."
+            exit 1
+          fi
+
+          VERIFY_RESPONSE="$verify_response" node -e '
+            const response = JSON.parse(process.env.VERIFY_RESPONSE);
+            if (!response.success || response.result?.status !== "active") {
+              console.error("::error::CLOUDFLARE_API_TOKEN is not active.");
+              process.exit(1);
+            }
+          '
+
+          if ! curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID" > /dev/null; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID is not accessible with CLOUDFLARE_API_TOKEN. Check the account ID and token account scope."
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Cleanup stale PR previews
         if: steps.cloudflare-secrets.outputs.enabled == 'true'
