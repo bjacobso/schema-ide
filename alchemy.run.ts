@@ -1,16 +1,32 @@
 import * as Alchemy from "alchemy";
+import type { StackServices } from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
+import * as GitHub from "alchemy/GitHub";
 import * as Output from "alchemy/Output";
+import * as Provider from "alchemy/Provider";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import ApiWorker from "./alchemy/schema-ide-api-worker.ts";
 
 const playgroundApiBaseUrlOverride =
   process.env["VITE_SCHEMA_IDE_API_BASE_URL"] ?? process.env["SCHEMA_IDE_API_BASE_URL"] ?? "";
+const pullRequestNumber = Number(process.env["PULL_REQUEST"] ?? "");
+const shouldCommentOnPullRequest = Number.isInteger(pullRequestNumber) && pullRequestNumber > 0;
+const commitLabel = process.env["GITHUB_SHA"]?.slice(0, 7) || "unknown";
+const githubCommentProviders = Layer.effect(
+  GitHub.Providers,
+  Provider.collection([GitHub.Comment]),
+).pipe(Layer.provide(GitHub.CommentProvider()));
+type PreviewProviderRequirements = Cloudflare.ProviderRequirements | GitHub.Providers;
+const providers: Layer.Layer<PreviewProviderRequirements, never, StackServices> =
+  shouldCommentOnPullRequest
+    ? Layer.mergeAll(Cloudflare.providers(), githubCommentProviders)
+    : Cloudflare.providers();
 
 export default Alchemy.Stack(
   "schema-ide",
   {
-    providers: Cloudflare.providers(),
+    providers,
     state: Cloudflare.state(),
   },
   Effect.gen(function* () {
@@ -22,6 +38,12 @@ export default Alchemy.Stack(
       rootDir: "./apps/playground",
       env: {
         VITE_SCHEMA_IDE_API_BASE_URL: playgroundApiBaseUrl,
+      },
+      assets: {
+        config: {
+          htmlHandling: "auto-trailing-slash",
+          notFoundHandling: "single-page-application",
+        },
       },
       memo: {
         include: [
@@ -37,6 +59,34 @@ export default Alchemy.Stack(
         ],
       },
     });
+
+    if (shouldCommentOnPullRequest) {
+      const deployedAt = new Date().toISOString();
+      yield* GitHub.Comment("preview-comment", {
+        owner: "bjacobso",
+        repository: "schema-ide",
+        issueNumber: pullRequestNumber,
+        body: Output.interpolate`
+            ## Cloudflare Preview Deployed
+
+            **Playground:** ${playground.url}
+            **API:** ${api.url}
+
+            Built from commit \`${commitLabel}\`
+
+            ---
+            <time datetime="${deployedAt}">${deployedAt}</time>
+
+            <sub>This comment updates automatically with each push.</sub>
+          `,
+      }).pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() => {
+            console.warn("Failed to post PR preview comment (non-fatal):", String(cause));
+          }),
+        ),
+      );
+    }
 
     return {
       apiUrl: api.url,
