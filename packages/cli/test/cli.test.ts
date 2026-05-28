@@ -406,6 +406,42 @@ describe("schema-ide-cli", () => {
     }
   });
 
+  it("local filesystem workspace client serves configured artifact project views", async () => {
+    const directory = await createFixtureWorkspace();
+    const workspace = await loadSchemaIdeWorkspaceConfig(fixtureConfigPath);
+    const client = createLocalFilesystemWorkspaceClient({
+      workspace,
+      directory,
+      debounceMs: 5,
+    });
+    const ref = { _tag: "WorkspaceFile" as const, path: "actions/email.json" };
+
+    try {
+      const capabilities = await Effect.runPromise(client.getArtifactCapabilities({ ref }));
+      expect(capabilities.capabilities.map((capability) => capability.view)).toEqual(
+        expect.arrayContaining([
+          "sourceText",
+          "parsedValue",
+          "jsonSchema",
+          "diagnostics",
+          "decodedValue",
+        ]),
+      );
+
+      await expect(
+        Effect.runPromise(client.readArtifactView({ ref, view: "decodedValue" })),
+      ).resolves.toMatchObject({
+        value: {
+          id: "email",
+          label: "Email",
+        },
+      });
+    } finally {
+      await Effect.runPromise(client.close);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("local filesystem workspace client keeps binary sidecars as bytes on disk", async () => {
     const directory = await createFixtureWorkspace();
     const workspace = {

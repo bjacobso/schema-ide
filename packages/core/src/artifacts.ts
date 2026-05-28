@@ -81,6 +81,7 @@ export interface CreateSchemaIdeArtifactRuntimeOptions<A = unknown> {
   readonly files: readonly SourceFile[];
   readonly activeFile: string | null;
   readonly activeFormat: SchemaIdeDocumentFormat;
+  readonly project?: ArtifactProjectDeclaration<string, any, any> | undefined;
   readonly workspaceId?: string | undefined;
   readonly store?: ArtifactStore | undefined;
   readonly relationSchema?: AnySchema | undefined;
@@ -253,6 +254,7 @@ export function createSchemaIdeArtifactRuntime<A>({
   files,
   activeFile,
   activeFormat,
+  project: configuredProject,
   workspaceId,
   store = createMemoryArtifactStore({
     files: files.map((file) => ({
@@ -264,9 +266,11 @@ export function createSchemaIdeArtifactRuntime<A>({
   relationSchema = hasAst(schema) ? schema : undefined,
   relationValue = (value) => value,
 }: CreateSchemaIdeArtifactRuntimeOptions<A>): SchemaIdeArtifactRuntime<A> {
-  const project: ArtifactProjectDeclaration<string, any, any> = isWorkspaceSchema(schema)
-    ? createArtifactProjectFromWorkspace(schema, { name: workspaceId ?? "schema-ide" })
-    : SchemaIdeArtifactProject;
+  const project: ArtifactProjectDeclaration<string, any, any> =
+    configuredProject ??
+    (isWorkspaceSchema(schema)
+      ? createArtifactProjectFromWorkspace(schema, { name: workspaceId ?? "schema-ide" })
+      : SchemaIdeArtifactProject);
   const runtimeFiles = collectFiles(store);
   const runtimeValidation = runtimeFiles.pipe(
     Effect.map((currentFiles) =>
@@ -326,6 +330,7 @@ export function createSchemaIdeArtifactRuntime<A>({
       activeFile: previewActiveFile ?? null,
       activeFormat,
       ...(workspaceId ? { workspaceId } : {}),
+      project,
       ...(relationSchema ? { relationSchema } : {}),
       relationValue,
     }).reflection;

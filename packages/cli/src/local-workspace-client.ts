@@ -1,5 +1,6 @@
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import {
+  createSchemaIdeArtifactRuntime,
   createReflection,
   formatForPath,
   validateSchemaIdeValue,
@@ -9,9 +10,7 @@ import {
 import {
   SchemaIdeWorkspaceError,
   artifactChangeToWorkspaceChange,
-  getArtifactCapabilitiesFromSnapshot,
   listArtifactRefsFromSnapshot,
-  readArtifactViewFromSnapshot,
   type SchemaIdeWorkspaceService,
   type WorkspaceCapabilities,
   type WorkspaceChangeRequest,
@@ -164,18 +163,31 @@ export function createLocalFilesystemWorkspaceClient({
     ),
     getArtifactCapabilities: (request) =>
       getSnapshot.pipe(
-        Effect.map((snapshot) =>
-          getArtifactCapabilitiesFromSnapshot({ snapshot, ref: request.ref }),
-        ),
+        Effect.map((snapshot) => {
+          const runtime = createArtifactRuntime(workspace, snapshot);
+          return {
+            capabilities: runtime.capabilities(request.ref).map((capability) => ({
+              id: capability.id,
+              type: capability.type,
+              view: capability.view,
+              annotations: capability.annotations,
+              ...(capability.routeId ? { routeId: capability.routeId } : {}),
+              ...(capability.routePattern ? { routePattern: capability.routePattern } : {}),
+            })),
+          };
+        }),
       ),
     readArtifactView: (request) =>
       getSnapshot.pipe(
-        Effect.flatMap((snapshot) =>
-          Effect.try({
-            try: () => readArtifactViewFromSnapshot({ snapshot, ...request }),
-            catch: toWorkspaceError,
-          }),
-        ),
+        Effect.flatMap((snapshot) => {
+          const runtime = createArtifactRuntime(workspace, snapshot);
+          return runtime.store.list.pipe(
+            Effect.map((refs) => normalizeArtifactRef(request.ref, refs, workspace.id)),
+            Effect.flatMap((ref) => runtime.view(ref, request.view)),
+            Effect.map((value) => ({ ref: request.ref, view: request.view, value })),
+            Effect.mapError(toWorkspaceError),
+          );
+        }),
       ),
     applyArtifactChange: (change) =>
       Effect.gen(function* () {
@@ -196,6 +208,44 @@ export function createLocalFilesystemWorkspaceClient({
       subscribers.clear();
     }),
   };
+}
+
+function createArtifactRuntime(
+  workspace: SchemaIdeCliWorkspace,
+  snapshot: WorkspaceSnapshot,
+  activeFile?: string | null | undefined,
+) {
+  const reflection = reflectWorkspace(workspace, snapshot.files, activeFile);
+  return createSchemaIdeArtifactRuntime({
+    schema: workspace.schema,
+    files: snapshot.files,
+    activeFile: reflection.activeFile,
+    activeFormat: reflection.activeFormat,
+    ...(workspace.id ? { workspaceId: workspace.id } : {}),
+    ...(workspace.artifactProject ? { project: workspace.artifactProject } : {}),
+  });
+}
+
+function normalizeArtifactRef(
+  ref: Parameters<SchemaIdeWorkspaceService["readArtifactView"]>[0]["ref"],
+  refs: readonly {
+    readonly _tag: string;
+    readonly path?: string | undefined;
+    readonly workspaceId?: string | undefined;
+  }[],
+  workspaceId: string | undefined,
+) {
+  if (ref._tag === "Workspace" && !ref.workspaceId && workspaceId) {
+    return { _tag: "Workspace" as const, workspaceId };
+  }
+  if (ref._tag !== "WorkspaceFile") return ref;
+  const existing = refs.find(
+    (candidate) => candidate._tag === "WorkspaceFile" && candidate.path === ref.path,
+  );
+  const resolvedWorkspaceId = existing?.workspaceId ?? ref.workspaceId ?? workspaceId;
+  return resolvedWorkspaceId
+    ? { _tag: "WorkspaceFile" as const, path: ref.path, workspaceId: resolvedWorkspaceId }
+    : ref;
 }
 
 function readSourceFilesEffect({
@@ -406,6 +456,30 @@ function changedPathsForChange(
 
 function toWorkspaceError(error: unknown): SchemaIdeWorkspaceError {
   if (error instanceof SchemaIdeWorkspaceError) return error;
+  if (typeof error === "object" && error !== null && "_tag" in error) {
+    const tag = String(error._tag);
+    if (
+      tag === "ArtifactTypeNotFound" ||
+      tag === "ArtifactViewNotFound" ||
+      tag === "ArtifactHandlerNotFound" ||
+      tag === "ArtifactUnexpectedInput"
+    ) {
+      return new SchemaIdeWorkspaceError("Unsupported artifact operation.", "unsupported");
+    }
+    if (tag === "ArtifactSchemaValidationError") {
+      return new SchemaIdeWorkspaceError("Artifact schema validation failed.", "storage");
+    }
+  }
+  if (typeof error === "object" && error !== null && "reason" in error) {
+    const reason = String(error.reason);
+    if (reason === "not-found") {
+      return new SchemaIdeWorkspaceError("Artifact not found.", "not-found");
+    }
+    if (reason === "already-exists") {
+      return new SchemaIdeWorkspaceError("Artifact already exists.", "already-exists");
+    }
+    return new SchemaIdeWorkspaceError("Unsupported artifact ref.", "unsupported");
+  }
   return new SchemaIdeWorkspaceError(
     error instanceof Error ? error.message : String(error),
     "storage",
