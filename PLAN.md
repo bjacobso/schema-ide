@@ -830,6 +830,13 @@ and expose artifact views:
 Cross-file meaning should become schema-algebra derived, not
 workspace-specific logic.
 
+Status: started. Core artifact runtimes now expose graph-derived schema-algebra
+views for `entityIndex`, `definitionLocations`, `references`, and
+`referenceDiagnostics` in addition to the existing `relationGraph` and
+`relationDiagnostics` views. These views are available on project refs and
+schema-backed file refs, giving agents and UIs a richer artifact-native
+inspection surface without reaching through `Workspace.Struct` directly.
+
 ### Phase 5: Convert Onboarded First
 
 Onboarded should be the first full conversion because it is domain-specific and

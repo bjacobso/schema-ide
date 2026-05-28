@@ -21,8 +21,10 @@ import {
 import {
   buildRelationGraph,
   validateRelations,
+  type RelationDefinition,
   type RelationDiagnostic,
   type RelationGraph,
+  type RelationReference,
 } from "@schema-ide/schema-algebra";
 import { formatForPath, parseDocument } from "./document-codec";
 import { sourceSchemaFromReflection } from "./reflection";
@@ -53,6 +55,17 @@ const SchemaIdeRelationGraphSchema = Schema.Struct({
   references: Schema.Array(Schema.Unknown),
 });
 
+const SchemaIdeRelationArraySchema = Schema.Array(Schema.Unknown);
+
+export interface RelationEntityIndexEntry {
+  readonly type: string;
+  readonly id: string;
+  readonly scope?: string | undefined;
+  readonly definitions: readonly RelationDefinition[];
+}
+
+export type RelationEntityIndex = readonly RelationEntityIndexEntry[];
+
 export interface SchemaIdeArtifactError {
   readonly message: string;
 }
@@ -72,7 +85,17 @@ export interface SchemaIdeArtifactRuntime<A = unknown> {
   readonly validation: Effect.Effect<ValidationResult<A>, SchemaIdeArtifactError>;
   readonly reflection: Effect.Effect<SchemaIdeReflection, SchemaIdeArtifactError>;
   readonly relationGraph: Effect.Effect<RelationGraph, SchemaIdeArtifactError>;
+  readonly entityIndex: Effect.Effect<RelationEntityIndex, SchemaIdeArtifactError>;
+  readonly definitionLocations: Effect.Effect<
+    readonly RelationDefinition[],
+    SchemaIdeArtifactError
+  >;
+  readonly references: Effect.Effect<readonly RelationReference[], SchemaIdeArtifactError>;
   readonly relationDiagnostics: Effect.Effect<
+    readonly RelationDiagnostic[],
+    SchemaIdeArtifactError
+  >;
+  readonly referenceDiagnostics: Effect.Effect<
     readonly RelationDiagnostic[],
     SchemaIdeArtifactError
   >;
@@ -157,8 +180,44 @@ export const SchemaIdeWorkspaceFileArtifact = ArtifactType.make("schema-ide.work
       mediaType: "application/json",
     },
   })
+  .view("entityIndex", {
+    output: SchemaIdeRelationArraySchema,
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
+  .view("definitionLocations", {
+    output: SchemaIdeRelationArraySchema,
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
+  .view("references", {
+    output: SchemaIdeRelationArraySchema,
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
   .view("relationDiagnostics", {
-    output: Schema.Array(Schema.Unknown),
+    output: SchemaIdeRelationArraySchema,
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
+  .view("referenceDiagnostics", {
+    output: SchemaIdeRelationArraySchema,
     error: SchemaIdeArtifactErrorSchema,
     annotations: {
       cost: Cost.low,
@@ -330,9 +389,53 @@ function withSchemaIdeWorkspaceViews(
       },
     }) as ArtifactProjectDeclaration<string, any, any>;
   }
+  if (!next.workspaceType.views["entityIndex"]) {
+    next = next.view("entityIndex", {
+      output: SchemaIdeRelationArraySchema,
+      error: SchemaIdeArtifactErrorSchema,
+      annotations: {
+        cost: Cost.low,
+        cache: CachePolicy.contentHash,
+        mediaType: "application/json",
+      },
+    }) as ArtifactProjectDeclaration<string, any, any>;
+  }
+  if (!next.workspaceType.views["definitionLocations"]) {
+    next = next.view("definitionLocations", {
+      output: SchemaIdeRelationArraySchema,
+      error: SchemaIdeArtifactErrorSchema,
+      annotations: {
+        cost: Cost.low,
+        cache: CachePolicy.contentHash,
+        mediaType: "application/json",
+      },
+    }) as ArtifactProjectDeclaration<string, any, any>;
+  }
+  if (!next.workspaceType.views["references"]) {
+    next = next.view("references", {
+      output: SchemaIdeRelationArraySchema,
+      error: SchemaIdeArtifactErrorSchema,
+      annotations: {
+        cost: Cost.low,
+        cache: CachePolicy.contentHash,
+        mediaType: "application/json",
+      },
+    }) as ArtifactProjectDeclaration<string, any, any>;
+  }
   if (!next.workspaceType.views["relationDiagnostics"]) {
     next = next.view("relationDiagnostics", {
-      output: Schema.Array(Schema.Unknown),
+      output: SchemaIdeRelationArraySchema,
+      error: SchemaIdeArtifactErrorSchema,
+      annotations: {
+        cost: Cost.low,
+        cache: CachePolicy.contentHash,
+        mediaType: "application/json",
+      },
+    }) as ArtifactProjectDeclaration<string, any, any>;
+  }
+  if (!next.workspaceType.views["referenceDiagnostics"]) {
+    next = next.view("referenceDiagnostics", {
+      output: SchemaIdeRelationArraySchema,
       error: SchemaIdeArtifactErrorSchema,
       annotations: {
         cost: Cost.low,
@@ -415,6 +518,14 @@ export function createSchemaIdeArtifactRuntime<A>({
       }),
     ),
   );
+  const runtimeEntityIndex = runtimeRelationGraph.pipe(Effect.map(entityIndexFromGraph));
+  const runtimeDefinitionLocations = runtimeRelationGraph.pipe(
+    Effect.map((graph) => graph.definitions),
+  );
+  const runtimeReferences = runtimeRelationGraph.pipe(Effect.map((graph) => graph.references));
+  const runtimeReferenceDiagnostics = runtimeRelationDiagnostics.pipe(
+    Effect.map(referenceDiagnosticsFromDiagnostics),
+  );
   const preview = (
     previewFiles: readonly SourceFile[],
     previewActiveFile: string | null | undefined = activeFile,
@@ -460,8 +571,30 @@ export function createSchemaIdeArtifactRuntime<A>({
       ),
     )
     .addHandler(
+      ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("entityIndex"), ({ ref }) =>
+        fileRelationGraph(store, project, ref).pipe(Effect.map(entityIndexFromGraph)),
+      ),
+    )
+    .addHandler(
+      ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("definitionLocations"), ({ ref }) =>
+        fileRelationGraph(store, project, ref).pipe(Effect.map((graph) => graph.definitions)),
+      ),
+    )
+    .addHandler(
+      ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("references"), ({ ref }) =>
+        fileRelationGraph(store, project, ref).pipe(Effect.map((graph) => graph.references)),
+      ),
+    )
+    .addHandler(
       ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("relationDiagnostics"), ({ ref }) =>
         fileRelationDiagnostics(store, project, ref),
+      ),
+    )
+    .addHandler(
+      ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("referenceDiagnostics"), ({ ref }) =>
+        fileRelationDiagnostics(store, project, ref).pipe(
+          Effect.map(referenceDiagnosticsFromDiagnostics),
+        ),
       ),
     )
     .addHandler(
@@ -486,8 +619,16 @@ export function createSchemaIdeArtifactRuntime<A>({
     )
     .addHandler(ArtifactHandler.make(project.view("reflection"), () => runtimeReflection))
     .addHandler(ArtifactHandler.make(project.view("relationGraph"), () => runtimeRelationGraph))
+    .addHandler(ArtifactHandler.make(project.view("entityIndex"), () => runtimeEntityIndex))
+    .addHandler(
+      ArtifactHandler.make(project.view("definitionLocations"), () => runtimeDefinitionLocations),
+    )
+    .addHandler(ArtifactHandler.make(project.view("references"), () => runtimeReferences))
     .addHandler(
       ArtifactHandler.make(project.view("relationDiagnostics"), () => runtimeRelationDiagnostics),
+    )
+    .addHandler(
+      ArtifactHandler.make(project.view("referenceDiagnostics"), () => runtimeReferenceDiagnostics),
     );
 
   const view: SchemaIdeArtifactRuntime["view"] = (ref, viewName, input, options) => {
@@ -509,7 +650,11 @@ export function createSchemaIdeArtifactRuntime<A>({
     validation: runtimeValidation,
     reflection: runtimeReflection,
     relationGraph: runtimeRelationGraph,
+    entityIndex: runtimeEntityIndex,
+    definitionLocations: runtimeDefinitionLocations,
+    references: runtimeReferences,
     relationDiagnostics: runtimeRelationDiagnostics,
+    referenceDiagnostics: runtimeReferenceDiagnostics,
     preview,
   };
 }
@@ -655,6 +800,44 @@ function fileSchemaRoute(
 ) {
   if (ref._tag !== "WorkspaceFile") return null;
   return project.route(ref).find((candidate) => candidate.schema) ?? null;
+}
+
+function entityIndexFromGraph(graph: RelationGraph): RelationEntityIndex {
+  const entries = new Map<string, RelationEntityIndexEntry>();
+
+  for (const definition of graph.definitions) {
+    const key = relationKey(definition.type, definition.id, definition.scope);
+    const existing = entries.get(key);
+    if (existing) {
+      entries.set(key, {
+        ...existing,
+        definitions: [...existing.definitions, definition],
+      });
+      continue;
+    }
+
+    entries.set(key, {
+      type: definition.type,
+      id: definition.id,
+      scope: definition.scope,
+      definitions: [definition],
+    });
+  }
+
+  return [...entries.values()];
+}
+
+function referenceDiagnosticsFromDiagnostics(
+  diagnostics: readonly RelationDiagnostic[],
+): readonly RelationDiagnostic[] {
+  return diagnostics.filter((diagnostic) => {
+    if (diagnostic.code === "unresolved-ref") return true;
+    return diagnostic.code === "invalid-relation-value" && "target" in diagnostic.relation;
+  });
+}
+
+function relationKey(type: string, id: string, scope: string | undefined): string {
+  return `${type}\u0000${scope ?? ""}\u0000${id}`;
 }
 
 function contentToText(content: ArtifactContent): string {
