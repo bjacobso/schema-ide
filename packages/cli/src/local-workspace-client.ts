@@ -10,7 +10,7 @@ import {
 import {
   SchemaIdeWorkspaceError,
   artifactChangeToWorkspaceChange,
-  listArtifactRefsFromSnapshot,
+  type ArtifactRef,
   type SchemaIdeWorkspaceService,
   type WorkspaceCapabilities,
   type WorkspaceChangeRequest,
@@ -159,7 +159,19 @@ export function createLocalFilesystemWorkspaceClient({
         reflection: reflectWorkspace(workspace, files, activeFile),
       }),
     listArtifactRefs: getSnapshot.pipe(
-      Effect.map((snapshot) => listArtifactRefsFromSnapshot(snapshot, workspace.id)),
+      Effect.flatMap((snapshot) => {
+        const runtime = createArtifactRuntime(workspace, snapshot);
+        return runtime.store.list.pipe(
+          Effect.map((refs) => {
+            const workspaceRef = workspace.id
+              ? { _tag: "Workspace" as const, workspaceId: workspace.id }
+              : { _tag: "Workspace" as const };
+            const artifacts = [workspaceRef, ...refs.filter(isProtocolArtifactRef)];
+            return { artifacts, count: artifacts.length };
+          }),
+          Effect.mapError(toWorkspaceError),
+        );
+      }),
     ),
     getArtifactCapabilities: (request) =>
       getSnapshot.pipe(
@@ -246,6 +258,14 @@ function normalizeArtifactRef(
   return resolvedWorkspaceId
     ? { _tag: "WorkspaceFile" as const, path: ref.path, workspaceId: resolvedWorkspaceId }
     : ref;
+}
+
+function isProtocolArtifactRef(ref: {
+  readonly _tag: string;
+  readonly path?: string | undefined;
+  readonly workspaceId?: string | undefined;
+}): ref is ArtifactRef {
+  return ref._tag === "Workspace" || (ref._tag === "WorkspaceFile" && typeof ref.path === "string");
 }
 
 function readSourceFilesEffect({
