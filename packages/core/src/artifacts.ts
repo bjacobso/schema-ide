@@ -14,8 +14,15 @@ import {
   type ArtifactRegistryDeclaration,
   type ArtifactStore,
 } from "@schema-ide/artifacts";
+import {
+  buildRelationGraph,
+  validateRelations,
+  type RelationDiagnostic,
+  type RelationGraph,
+} from "@schema-ide/schema-algebra";
 import { formatForPath, parseDocument } from "./document-codec";
 import { createReflection, validateSchemaIdeValue, type SchemaIdeInputSchema } from "./validation";
+import type { AnySchema } from "./types";
 import type {
   SchemaIdeDiagnostic,
   SchemaIdeDocumentFormat,
@@ -48,6 +55,11 @@ export interface SchemaIdeArtifactRuntime<A = unknown> {
   readonly files: Effect.Effect<readonly SourceFile[], SchemaIdeArtifactError>;
   readonly validation: Effect.Effect<ValidationResult<A>, SchemaIdeArtifactError>;
   readonly reflection: Effect.Effect<SchemaIdeReflection, SchemaIdeArtifactError>;
+  readonly relationGraph: Effect.Effect<RelationGraph, SchemaIdeArtifactError>;
+  readonly relationDiagnostics: Effect.Effect<
+    readonly RelationDiagnostic[],
+    SchemaIdeArtifactError
+  >;
 }
 
 export interface CreateSchemaIdeArtifactRuntimeOptions<A = unknown> {
@@ -57,6 +69,8 @@ export interface CreateSchemaIdeArtifactRuntimeOptions<A = unknown> {
   readonly activeFormat: SchemaIdeDocumentFormat;
   readonly workspaceId?: string | undefined;
   readonly store?: ArtifactStore | undefined;
+  readonly relationSchema?: AnySchema | undefined;
+  readonly relationValue?: ((value: A) => unknown) | undefined;
 }
 
 export const SchemaIdeWorkspaceFileArtifact = ArtifactType.make("schema-ide.workspace-file")
@@ -144,6 +158,27 @@ export const SchemaIdeArtifactProject = ArtifactProject.make("schema-ide")
       cache: CachePolicy.contentHash,
       mediaType: "application/json",
     },
+  })
+  .view("relationGraph", {
+    output: Schema.Struct({
+      definitions: Schema.Array(Schema.Unknown),
+      references: Schema.Array(Schema.Unknown),
+    }),
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
+  .view("relationDiagnostics", {
+    output: Schema.Array(Schema.Unknown),
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
   });
 
 export function createSchemaIdeArtifactRuntime<A>({
@@ -159,6 +194,8 @@ export function createSchemaIdeArtifactRuntime<A>({
       ...(workspaceId ? { workspaceId } : {}),
     })),
   }),
+  relationSchema = hasAst(schema) ? schema : undefined,
+  relationValue = (value) => value,
 }: CreateSchemaIdeArtifactRuntimeOptions<A>): SchemaIdeArtifactRuntime<A> {
   const runtimeFiles = collectFiles(store);
   const runtimeValidation = runtimeFiles.pipe(
@@ -187,6 +224,28 @@ export function createSchemaIdeArtifactRuntime<A>({
       validation,
     });
   });
+  const runtimeRelationGraph = runtimeValidation.pipe(
+    Effect.flatMap((validation) =>
+      Effect.try({
+        try: () =>
+          validation.value === null || !relationSchema
+            ? ({ definitions: [], references: [] } satisfies RelationGraph)
+            : buildRelationGraph(relationSchema, relationValue(validation.value)),
+        catch: toArtifactError,
+      }),
+    ),
+  );
+  const runtimeRelationDiagnostics = runtimeValidation.pipe(
+    Effect.flatMap((validation) =>
+      Effect.try({
+        try: () =>
+          validation.value === null || !relationSchema
+            ? []
+            : validateRelations(relationSchema, relationValue(validation.value)),
+        catch: toArtifactError,
+      }),
+    ),
+  );
 
   const registry = ArtifactRegistry.make(SchemaIdeArtifactProject.api)
     .addHandler(
@@ -234,6 +293,18 @@ export function createSchemaIdeArtifactRuntime<A>({
     )
     .addHandler(
       ArtifactHandler.make(SchemaIdeArtifactProject.view("reflection"), () => runtimeReflection),
+    )
+    .addHandler(
+      ArtifactHandler.make(
+        SchemaIdeArtifactProject.view("relationGraph"),
+        () => runtimeRelationGraph,
+      ),
+    )
+    .addHandler(
+      ArtifactHandler.make(
+        SchemaIdeArtifactProject.view("relationDiagnostics"),
+        () => runtimeRelationDiagnostics,
+      ),
     );
 
   return {
@@ -245,6 +316,8 @@ export function createSchemaIdeArtifactRuntime<A>({
     files: runtimeFiles,
     validation: runtimeValidation,
     reflection: runtimeReflection,
+    relationGraph: runtimeRelationGraph,
+    relationDiagnostics: runtimeRelationDiagnostics,
   };
 }
 
@@ -335,6 +408,10 @@ function toArtifactError(error: unknown): SchemaIdeArtifactError {
     return { message: `Artifact store ${String(error.reason)}` };
   }
   return { message: error instanceof Error ? error.message : String(error) };
+}
+
+function hasAst(value: unknown): value is AnySchema {
+  return Boolean(value && typeof value === "object" && "ast" in value);
 }
 
 export type SchemaIdeArtifactProject = typeof SchemaIdeArtifactProject;

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { ArtifactRef } from "@schema-ide/artifacts";
+import { Relation } from "@schema-ide/schema-algebra";
 import {
   Workspace,
   applyWorkspaceChange,
@@ -248,6 +249,8 @@ describe("schema-ide-core", () => {
       "validationSummary",
       "routeMatches",
       "reflection",
+      "relationGraph",
+      "relationDiagnostics",
     ]);
     expect(runtime.capabilities(fileRef).map((capability) => capability.view)).toEqual([
       "sourceText",
@@ -280,6 +283,75 @@ describe("schema-ide-core", () => {
       activeFile: "config/demo.json",
       validationSummary: { valid: true, errorCount: 0 },
     });
+  });
+
+  it("exposes schema-algebra graph and diagnostics as artifact views", async () => {
+    const FormSchema = Schema.Struct({
+      id: Relation.id("Form"),
+    });
+    const PolicySchema = Schema.Struct({
+      id: Relation.id("Policy"),
+      formId: Relation.ref("Form"),
+    });
+    const WorkspaceSchema = Workspace.Struct({
+      forms: Workspace.files("forms/*.json", FormSchema).pipe(Workspace.values()),
+      policies: Workspace.files("policies/*.json", PolicySchema).pipe(Workspace.values()),
+    });
+    const RelationWorkspaceSchema = Schema.Struct({
+      forms: Schema.Array(FormSchema),
+      policies: Schema.Array(PolicySchema),
+    });
+    const runtime = createSchemaIdeArtifactRuntime({
+      schema: WorkspaceSchema,
+      relationSchema: RelationWorkspaceSchema,
+      activeFile: "policies/check.json",
+      activeFormat: "json",
+      files: [
+        { path: "forms/intake.json", content: '{"id":"intake"}\n' },
+        { path: "policies/check.json", content: '{"id":"check","formId":"missing"}\n' },
+      ],
+    });
+    const workspaceRef = ArtifactRef.workspace();
+
+    await expect(Effect.runPromise(runtime.view(workspaceRef, "relationGraph"))).resolves.toEqual({
+      definitions: [
+        {
+          type: "Form",
+          id: "intake",
+          path: ["forms", "0", "id"],
+          scope: undefined,
+          display: undefined,
+        },
+        {
+          type: "Policy",
+          id: "check",
+          path: ["policies", "0", "id"],
+          scope: undefined,
+          display: undefined,
+        },
+      ],
+      references: [
+        {
+          target: "Form",
+          id: "missing",
+          path: ["policies", "0", "formId"],
+          scope: undefined,
+          scopedBy: undefined,
+          edge: undefined,
+          valueKind: "id",
+        },
+      ],
+    });
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "relationDiagnostics")),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        code: "unresolved-ref",
+        path: ["policies", "0", "formId"],
+        message: 'Unresolved Form reference "missing"',
+      }),
+    ]);
+    await expect(Effect.runPromise(runtime.relationDiagnostics)).resolves.toHaveLength(1);
   });
 
   it("derives completions, hover, and quick fixes from generated JSON Schema", () => {
