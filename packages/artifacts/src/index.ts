@@ -41,6 +41,7 @@ export type {
   ArtifactFileRoute,
   ArtifactFileRouteOptions,
   ArtifactProjectCapability,
+  ArtifactSchemaFileRouteConfig,
 } from "./project";
 export type {
   ArtifactCachePolicy,

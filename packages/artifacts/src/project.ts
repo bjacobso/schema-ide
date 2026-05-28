@@ -1,6 +1,8 @@
+import type { Schema } from "effect";
 import { ArtifactApi, type AnyArtifactApi, type ArtifactCapability } from "./api";
 import { ArtifactTypeDeclaration, type AnyArtifactType } from "./artifact-type";
 import { ArtifactMatcher, type ArtifactMetadata } from "./matcher";
+import { CachePolicy, Cost } from "./policy";
 import { pathFromArtifactRef, type ArtifactRef } from "./ref";
 import type { ArtifactViewConfig, ArtifactViewDefinition, ArtifactViewMap } from "./artifact-type";
 
@@ -8,6 +10,7 @@ export interface ArtifactFileRoute<Type extends AnyArtifactType = AnyArtifactTyp
   readonly id: string;
   readonly pattern: string;
   readonly type: Type;
+  readonly schema?: Schema.Schema<unknown> | undefined;
   readonly metadata?: ArtifactMetadata | undefined;
 }
 
@@ -17,6 +20,16 @@ export interface ArtifactProjectCapability extends ArtifactCapability {
 }
 
 export interface ArtifactFileRouteOptions {
+  readonly id?: string | undefined;
+  readonly metadata?: ArtifactMetadata | undefined;
+}
+
+export interface ArtifactSchemaFileRouteConfig<
+  Type extends AnyArtifactType = AnyArtifactType,
+  A = unknown,
+> {
+  readonly type: Type;
+  readonly schema: Schema.Schema<A>;
   readonly id?: string | undefined;
   readonly metadata?: ArtifactMetadata | undefined;
 }
@@ -54,18 +67,32 @@ export class ArtifactProjectDeclaration<
   files<Type extends AnyArtifactType>(
     pattern: string,
     type: Type,
-    options: ArtifactFileRouteOptions = {},
+    options?: ArtifactFileRouteOptions,
   ): ArtifactProjectDeclaration<
     ProjectName,
     readonly [...Routes, ArtifactFileRoute<Type>],
     WorkspaceViews
+  >;
+  files<Type extends AnyArtifactType, A>(
+    pattern: string,
+    config: ArtifactSchemaFileRouteConfig<Type, A>,
+  ): ArtifactProjectDeclaration<
+    ProjectName,
+    readonly [...Routes, ArtifactFileRoute],
+    WorkspaceViews
+  >;
+  files(
+    pattern: string,
+    typeOrConfig: AnyArtifactType | ArtifactSchemaFileRouteConfig,
+    options: ArtifactFileRouteOptions = {},
+  ): ArtifactProjectDeclaration<
+    ProjectName,
+    readonly [...Routes, ArtifactFileRoute],
+    WorkspaceViews
   > {
-    const route: ArtifactFileRoute<Type> = {
-      id: options.id ?? pattern,
-      pattern,
-      type,
-      ...(options.metadata ? { metadata: options.metadata } : {}),
-    };
+    const route = isSchemaFileRouteConfig(typeOrConfig)
+      ? makeSchemaRoute(pattern, typeOrConfig)
+      : makeRoute(pattern, typeOrConfig, options);
     return new ArtifactProjectDeclaration(
       this.name,
       [...this.routes, route] as const,
@@ -134,6 +161,57 @@ export const ArtifactProject = {
   make: <ProjectName extends string>(name: ProjectName): ArtifactProjectDeclaration<ProjectName> =>
     new ArtifactProjectDeclaration(name),
 } as const;
+
+function makeRoute<Type extends AnyArtifactType>(
+  pattern: string,
+  type: Type,
+  options: ArtifactFileRouteOptions,
+): ArtifactFileRoute<Type> {
+  const route: ArtifactFileRoute<Type> = {
+    id: options.id ?? pattern,
+    pattern,
+    type,
+    ...(options.metadata ? { metadata: options.metadata } : {}),
+  };
+  return route;
+}
+
+function makeSchemaRoute<A>(
+  pattern: string,
+  config: ArtifactSchemaFileRouteConfig<AnyArtifactType, A>,
+): ArtifactFileRoute {
+  const type = withDecodedValueView(config.type, config.schema);
+  return {
+    id: config.id ?? pattern,
+    pattern,
+    type,
+    schema: config.schema as Schema.Schema<unknown>,
+    ...(config.metadata ? { metadata: config.metadata } : {}),
+  };
+}
+
+function withDecodedValueView<A>(type: AnyArtifactType, schema: Schema.Schema<A>): AnyArtifactType {
+  if (type.views["decodedValue"]) return type;
+
+  return type.view("decodedValue", {
+    output: schema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  }) as unknown as AnyArtifactType;
+}
+
+function isSchemaFileRouteConfig(value: unknown): value is ArtifactSchemaFileRouteConfig {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "type" in value &&
+    "schema" in value &&
+    (value as { type?: { _tag?: unknown } }).type?._tag === "ArtifactType",
+  );
+}
 
 function matchGlob(pattern: string, path: string): boolean {
   const escaped = pattern

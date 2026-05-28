@@ -183,6 +183,39 @@ describe("schema-ide-artifacts", () => {
     ]);
   });
 
+  it("declares schema-backed file routes with decoded value capabilities", () => {
+    const Project = ArtifactProject.make("demo").files("config/*.json", {
+      id: "configs",
+      type: ArtifactType.make("config"),
+      schema: ParsedConfig,
+      metadata: { mimeType: "application/json" },
+    });
+    const ref = ArtifactRef.workspaceFile("config/demo.json");
+
+    expect(Project.route(ref)).toHaveLength(1);
+    expect(Project.route(ref)[0]?.schema).toBe(ParsedConfig);
+    expect(Project.route(ref)[0]?.metadata).toEqual({ mimeType: "application/json" });
+    expect(
+      Project.capabilities(ref).map((capability) => ({
+        id: capability.id,
+        routeId: capability.routeId,
+        view: capability.view,
+        annotations: capability.annotations,
+      })),
+    ).toEqual([
+      {
+        id: "configs.decodedValue",
+        routeId: "configs",
+        view: "decodedValue",
+        annotations: {
+          cost: "low",
+          cache: "contentHash",
+          mediaType: "application/json",
+        },
+      },
+    ]);
+  });
+
   it("stores workspace file artifacts in memory", async () => {
     const store = createMemoryArtifactStore({
       files: [{ path: "config/demo.json", content: '{"name":"Demo","enabled":true}' }],
