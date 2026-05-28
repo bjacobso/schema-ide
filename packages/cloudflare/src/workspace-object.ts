@@ -10,6 +10,7 @@ import {
   applyWorkspaceChange,
   codecForPath,
   createReflection,
+  createSchemaIdeArtifactRuntime,
   createVersionedWorkspace,
   validateSchemaIdeValue,
   type SchemaIdeDocumentFormat,
@@ -20,9 +21,8 @@ import {
   SchemaIdeWorkspaceError,
   SchemaIdeWorkspaceRpcGroup,
   artifactChangeToWorkspaceChange,
-  getArtifactCapabilitiesFromSnapshot,
-  listArtifactRefsFromSnapshot,
-  readArtifactViewFromSnapshot,
+  type ArtifactCapability,
+  type ArtifactRef,
   type SchemaIdeWorkspaceService,
   type WorkspaceCapabilities,
   type WorkspaceChangeRequest,
@@ -217,25 +217,36 @@ function makeDurableObjectWorkspaceService(
       }).pipe(Effect.mapError(toWorkspaceError)),
     listArtifactRefs: Effect.gen(function* () {
       const metadata = yield* readMetadata(storage);
-      const snapshot = yield* getSnapshot;
-      return listArtifactRefsFromSnapshot(snapshot, metadata.workspaceId);
+      const files = yield* readFiles(storage);
+      const runtime = createArtifactRuntime(metadata, files);
+      const refs = yield* runtime.store.list.pipe(Effect.mapError(toWorkspaceError));
+      const artifacts = [
+        { _tag: "Workspace" as const, workspaceId: metadata.workspaceId },
+        ...refs.filter(isProtocolArtifactRef),
+      ];
+      return { artifacts, count: artifacts.length };
     }).pipe(Effect.mapError(toWorkspaceError)),
     getArtifactCapabilities: (request) =>
-      getSnapshot.pipe(
-        Effect.map((snapshot) =>
-          getArtifactCapabilitiesFromSnapshot({ snapshot, ref: request.ref }),
-        ),
-        Effect.mapError(toWorkspaceError),
-      ),
+      Effect.gen(function* () {
+        const metadata = yield* readMetadata(storage);
+        const files = yield* readFiles(storage);
+        const runtime = createArtifactRuntime(metadata, files);
+        const ref = yield* normalizeArtifactRef(runtime, request.ref, metadata.workspaceId);
+        return {
+          capabilities: runtime.capabilities(ref).map(protocolCapability),
+        };
+      }).pipe(Effect.mapError(toWorkspaceError)),
     readArtifactView: (request) =>
-      getSnapshot.pipe(
-        Effect.flatMap((snapshot) =>
-          Effect.try({
-            try: () => readArtifactViewFromSnapshot({ snapshot, ...request }),
-            catch: toWorkspaceError,
-          }),
-        ),
-      ),
+      Effect.gen(function* () {
+        const metadata = yield* readMetadata(storage);
+        const files = yield* readFiles(storage);
+        const runtime = createArtifactRuntime(metadata, files);
+        const ref = yield* normalizeArtifactRef(runtime, request.ref, metadata.workspaceId);
+        const value = yield* runtime
+          .view(ref, request.view)
+          .pipe(Effect.mapError(toWorkspaceError));
+        return { ref: request.ref, view: request.view, value };
+      }),
     applyArtifactChange: (change) =>
       Effect.tryPromise({
         try: async () => {
@@ -292,6 +303,15 @@ function readSnapshot(storage: DurableObjectStorageBinding) {
       const files = await readFilesRaw(storage);
       return makeSnapshot(metadata, files);
     },
+    catch: toWorkspaceError,
+  });
+}
+
+function readFiles(
+  storage: DurableObjectStorageBinding,
+): Effect.Effect<readonly SourceFile[], SchemaIdeWorkspaceError> {
+  return Effect.tryPromise({
+    try: () => readFilesRaw(storage),
     catch: toWorkspaceError,
   });
 }
@@ -409,6 +429,90 @@ function makePreviewResponse(
       validation,
     }),
   };
+}
+
+function createArtifactRuntime(
+  metadata: HostedWorkspaceMetadata,
+  files: readonly SourceFile[],
+  activeFile?: string | null | undefined,
+) {
+  const template = findTemplate(metadata.templateId) ?? findTemplate(defaultTemplateId);
+  if (!template) {
+    throw new SchemaIdeWorkspaceError(
+      `Workspace template is not available: ${metadata.templateId}`,
+      "storage",
+    );
+  }
+
+  const selectedActiveFile =
+    activeFile && files.some((file) => file.path === activeFile)
+      ? activeFile
+      : (files[0]?.path ?? null);
+  const activeFormat = selectedActiveFile
+    ? codecForPath(selectedActiveFile, metadata.defaultFormat).format
+    : metadata.defaultFormat;
+
+  return createSchemaIdeArtifactRuntime({
+    schema: template.schema,
+    files,
+    activeFile: selectedActiveFile,
+    activeFormat,
+    workspaceId: metadata.workspaceId,
+  });
+}
+
+function normalizeArtifactRef(
+  runtime: ReturnType<typeof createArtifactRuntime>,
+  ref: ArtifactRef,
+  workspaceId: string,
+): Effect.Effect<ArtifactRef, SchemaIdeWorkspaceError> {
+  if (ref._tag === "Workspace" && !ref.workspaceId) {
+    return Effect.succeed({ _tag: "Workspace", workspaceId });
+  }
+  if (ref._tag !== "WorkspaceFile") return Effect.succeed(ref);
+
+  return runtime.store.list.pipe(
+    Effect.map((refs) => {
+      const existing = refs.find(
+        (candidate) => candidate._tag === "WorkspaceFile" && candidate.path === ref.path,
+      );
+      return {
+        _tag: "WorkspaceFile" as const,
+        path: ref.path,
+        workspaceId:
+          existing?._tag === "WorkspaceFile"
+            ? (existing.workspaceId ?? ref.workspaceId ?? workspaceId)
+            : (ref.workspaceId ?? workspaceId),
+      };
+    }),
+    Effect.mapError(toWorkspaceError),
+  );
+}
+
+function protocolCapability(capability: {
+  readonly id: string;
+  readonly type: string;
+  readonly view: string;
+  readonly annotations: unknown;
+  readonly routeId?: string | undefined;
+  readonly routePattern?: string | undefined;
+}): ArtifactCapability {
+  return {
+    id: capability.id,
+    type: capability.type,
+    view: capability.view,
+    annotations: capability.annotations,
+    ...(capability.routeId ? { routeId: capability.routeId } : {}),
+    ...(capability.routePattern ? { routePattern: capability.routePattern } : {}),
+  };
+}
+
+function isProtocolArtifactRef(ref: {
+  readonly _tag: string;
+  readonly path?: string | undefined;
+  readonly workspaceId?: string | undefined;
+}): ref is ArtifactRef {
+  return ref._tag === "Workspace" || (ref._tag === "WorkspaceFile" && typeof ref.path === "string");
 }
 
 async function readInitializeRequest(request: Request): Promise<InitializeWorkspaceRequest> {
