@@ -10,6 +10,7 @@ import {
   resolveSchemaIdePreview,
   SchemaIde,
   WorkspacePreview,
+  type SchemaIdeProps,
   type SchemaIdePreviewComponentProps,
   type SchemaIdePreviewRegistration,
   type SchemaIdePreviewRegistrationForRoutes,
@@ -177,6 +178,19 @@ describe("schema-ide-react", () => {
       readonly onChange: (content: string) => void;
     }>();
     expectTypeOf(WorkspaceSchema).toMatchTypeOf<SchemaIdeInputSchema<unknown, Routes>>();
+  });
+
+  it("types the top-level SchemaIde component with schema or artifact input", () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const artifacts = createSchemaIdeArtifactRuntime({
+      schema: DocumentSchema,
+      files: [{ path: "document.json", content: '{"id":"initial"}\n' }],
+      activeFile: "document.json",
+      activeFormat: "json",
+    });
+
+    expectTypeOf({ schema: DocumentSchema }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ artifacts }).toMatchTypeOf<SchemaIdeProps>();
   });
 
   it("memory workspace client exposes snapshots, writes, and watch events", async () => {

@@ -51,6 +51,7 @@ import {
   type SchemaIdeInputSchema,
   undoWorkspaceChange,
   validateSchemaIdeValue,
+  type SchemaIdeArtifactRuntime,
   type VersionedWorkspaceState,
   type WorkspaceRouteMap,
   type WorkspaceRevisionMetadata,
@@ -67,9 +68,24 @@ import { SchemaCodeMirrorEditor } from "./SchemaCodeMirrorEditor";
 import { SchemaIdeFileTree } from "./SchemaIdeFileTree";
 import { isPdfPath, SchemaIdePdfFileViewer } from "./SchemaIdePdfFileViewer";
 import { SchemaIdePreviewView } from "./SchemaIdePreviewView";
+import { SchemaIdeWorkspaceView } from "./SchemaIdeWorkspaceView";
+import { createArtifactWorkspaceClient } from "./workspace-client";
 
-export interface SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
+interface SchemaIdeSharedProps<Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
+  readonly chat?: SchemaIdeChatAdapter | undefined;
+  readonly readOnly?: boolean | undefined;
+  readonly title?: ReactNode;
+  readonly showDebug?: boolean | undefined;
+  readonly previews?: readonly SchemaIdePreviewRegistrationForRoutes<Routes>[] | undefined;
+  readonly defaultMode?: SchemaIdeEditorMode | undefined;
+}
+
+export interface SchemaIdeSchemaProps<
+  A = unknown,
+  Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
+> extends SchemaIdeSharedProps<Routes> {
   readonly schema: SchemaIdeInputSchema<A, Routes>;
+  readonly artifacts?: never;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly allowedFormats?: readonly SchemaIdeDocumentFormat[] | undefined;
   readonly initialValue?: A | undefined;
@@ -79,15 +95,68 @@ export interface SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = 
   readonly files?: readonly SourceFile[] | undefined;
   readonly onFilesChange?: ((files: readonly SourceFile[]) => void) | undefined;
   readonly onWorkspaceChange?: ((workspace: VersionedWorkspaceState) => void) | undefined;
-  readonly chat?: SchemaIdeChatAdapter | undefined;
-  readonly readOnly?: boolean | undefined;
-  readonly title?: ReactNode;
-  readonly showDebug?: boolean | undefined;
-  readonly previews?: readonly SchemaIdePreviewRegistrationForRoutes<Routes>[] | undefined;
-  readonly defaultMode?: SchemaIdeEditorMode | undefined;
 }
 
-export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap>({
+export interface SchemaIdeArtifactProps<
+  Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
+> extends SchemaIdeSharedProps<Routes> {
+  readonly artifacts: SchemaIdeArtifactRuntime;
+  readonly schema?: never;
+  readonly defaultFormat?: never;
+  readonly allowedFormats?: never;
+  readonly initialValue?: never;
+  readonly value?: never;
+  readonly onChange?: never;
+  readonly initialFiles?: never;
+  readonly files?: never;
+  readonly onFilesChange?: never;
+  readonly onWorkspaceChange?: never;
+}
+
+export type SchemaIdeProps<A = unknown, Routes extends WorkspaceRouteMap = WorkspaceRouteMap> =
+  | SchemaIdeSchemaProps<A, Routes>
+  | SchemaIdeArtifactProps<Routes>;
+
+export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap>(
+  props: SchemaIdeProps<A, Routes>,
+) {
+  if ("artifacts" in props && props.artifacts) {
+    return <SchemaIdeArtifactMode {...props} />;
+  }
+  return <SchemaIdeSchemaMode {...props} />;
+}
+
+function SchemaIdeArtifactMode<Routes extends WorkspaceRouteMap = WorkspaceRouteMap>({
+  artifacts,
+  chat = createLocalSchemaIdeChatAdapter(),
+  readOnly = false,
+  title = "Schema IDE",
+  showDebug = true,
+  previews = [],
+  defaultMode = "code",
+}: SchemaIdeArtifactProps<Routes>) {
+  const workspace = useMemo(
+    () =>
+      createArtifactWorkspaceClient(artifacts, {
+        title: typeof title === "string" ? title : undefined,
+        readOnly,
+      }),
+    [artifacts, readOnly, title],
+  );
+
+  return (
+    <SchemaIdeWorkspaceView
+      workspace={workspace}
+      chat={chat}
+      title={title}
+      showDebug={showDebug}
+      previews={previews}
+      defaultMode={defaultMode}
+    />
+  );
+}
+
+function SchemaIdeSchemaMode<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap>({
   schema,
   defaultFormat = "json",
   allowedFormats = ["json", "yaml"],
@@ -104,7 +173,7 @@ export function SchemaIde<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMa
   showDebug = true,
   previews = [],
   defaultMode = "code",
-}: SchemaIdeProps<A, Routes>) {
+}: SchemaIdeSchemaProps<A, Routes>) {
   const workspaceMode = isWorkspaceSchema(schema);
   const [activeFormat, setActiveFormat] = useState<SchemaIdeDocumentFormat>(defaultFormat);
   const [internalWorkspace, setInternalWorkspace] = useState<VersionedWorkspaceState>(() =>
