@@ -10,8 +10,9 @@ and can bundle the result with the web UI.
 The sample also includes
 `workspaces/onboarded-account-yaml/artifact-project.yaml`, a serializable
 artifact-project declaration for the same routes and schema-algebra views. The
-TypeScript runtime can parse that YAML with `parseOnboardedArtifactProjectConfig`
-and create an artifact-backed runtime with
+sample `schema-ide.config.ts` reads that YAML as its route/config source of
+truth. The TypeScript runtime can parse the same file with
+`parseOnboardedArtifactProjectConfig` and create an artifact-backed runtime with
 `createOnboardedArtifactRuntimeFromProjectConfig`.
 
 ## Validate

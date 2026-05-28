@@ -1,10 +1,19 @@
+import { readFileSync } from "node:fs";
 import { defineSchemaIdeWorkspace } from "@schema-ide/cli";
-import { OnboardedAccountWorkspaceSchema, OnboardedArtifactProject } from "../../src/index";
+import {
+  OnboardedAccountWorkspaceSchema,
+  createOnboardedArtifactProject,
+  parseOnboardedArtifactProjectConfig,
+} from "../../src/index";
+
+const artifactProjectConfig = parseOnboardedArtifactProjectConfig(
+  readFileSync(new URL("./artifact-project.yaml", import.meta.url), "utf8"),
+);
 
 export default defineSchemaIdeWorkspace({
-  id: "onboarded-account-yaml",
+  id: artifactProjectConfig.id,
   schema: OnboardedAccountWorkspaceSchema,
-  artifactProject: OnboardedArtifactProject,
-  defaultFormat: "yaml",
-  include: ["**/*.yaml", "**/*.pdf", "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.webp"],
+  artifactProject: createOnboardedArtifactProject(artifactProjectConfig),
+  defaultFormat: artifactProjectConfig.defaultFormat,
+  include: artifactProjectConfig.include,
 });

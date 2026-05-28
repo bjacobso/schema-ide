@@ -32,6 +32,9 @@ const fixtureArtifactProjectPath = resolve(
 
 describe("onboarded-config", () => {
   it("validates the packaged sample workspace through the generic CLI config", async () => {
+    const artifactProjectConfig = parseOnboardedArtifactProjectConfig(
+      await readFile(fixtureArtifactProjectPath, "utf8"),
+    );
     const workspace = await loadSchemaIdeWorkspaceConfig(fixtureConfigPath);
     const reflection = await validateWorkspaceDirectory({
       workspace,
@@ -40,9 +43,12 @@ describe("onboarded-config", () => {
 
     expect(reflection.validationSummary.valid).toBe(true);
     expect(reflection.routeMatches.length).toBeGreaterThan(0);
+    expect(workspace.id).toBe(artifactProjectConfig.id);
+    expect(workspace.include).toEqual(artifactProjectConfig.include);
+    expect(workspace.defaultFormat).toBe(artifactProjectConfig.defaultFormat);
     expect(workspace.artifactProject?.name).toBe(OnboardedArtifactProject.name);
     expect(workspace.artifactProject?.routes.map((route) => route.pattern)).toEqual(
-      OnboardedArtifactProject.routes.map((route) => route.pattern),
+      artifactProjectConfig.files.map((route) => route.pattern),
     );
   });
 
