@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "@effect/vitest";
+import { Effect } from "effect";
 import { validateSchemaIdeValue } from "@schema-ide/core";
 import {
   loadSchemaIdeWorkspaceConfig,
@@ -8,7 +9,7 @@ import {
   validateWorkspaceDirectory,
 } from "@schema-ide/cli";
 import { createOnboardedConfigCli } from "../src/cli";
-import { OnboardedAccountWorkspaceSchema } from "../src/index";
+import { OnboardedAccountWorkspaceSchema, createOnboardedArtifactRuntime } from "../src/index";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureDir = resolve(packageDir, "workspaces/onboarded-account-yaml/files");
@@ -56,6 +57,27 @@ describe("onboarded-config", () => {
 
     expect(result.summary.valid).toBe(true);
     expect(result.routeMatches.length).toBeGreaterThan(0);
+  });
+
+  it("exposes the packaged sample workspace through onboarded artifact views", async () => {
+    const files = await readSourceFilesFromDirectory({
+      directory: fixtureDir,
+      include: ["**/*.yaml", "**/*.pdf", "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.webp"],
+    });
+    const runtime = createOnboardedArtifactRuntime({ files });
+    const workspaceRef = { _tag: "Workspace", workspaceId: "onboarded-account-yaml" } as const;
+
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "validationSummary")),
+    ).resolves.toMatchObject({ valid: true });
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "relationDiagnostics")),
+    ).resolves.toEqual([]);
+
+    const graph = await Effect.runPromise(runtime.view(workspaceRef, "relationGraph"));
+    expect(
+      (graph as { definitions: readonly { type: string }[] }).definitions.length,
+    ).toBeGreaterThan(0);
   });
 
   it("validates onboarded account workspace references", () => {

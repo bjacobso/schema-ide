@@ -1,5 +1,10 @@
 export { OnboardedAccountConfigSchema, type OnboardedAccountConfig } from "./account";
 export {
+  createOnboardedArtifactRuntime,
+  type CreateOnboardedArtifactRuntimeOptions,
+  type OnboardedArtifactRuntime,
+} from "./artifacts";
+export {
   OnboardedAttributeCatalogSchema,
   type OnboardedAttributeCatalog,
   type OnboardedAttributeDefinition,
@@ -45,6 +50,11 @@ export {
 } from "./pdf-mappings";
 export { OnboardedPolicyConfigSchema, type OnboardedPolicyConfig } from "./policies";
 export {
+  OnboardedRelationWorkspaceSchema,
+  createOnboardedRelationWorkspace,
+  type OnboardedRelationWorkspace,
+} from "./relations";
+export {
   OnboardedRuleSchema,
   RuleOperatorSchema,
   type Rule,
@@ -52,4 +62,4 @@ export {
   type RuleAny,
   type RuleCondition,
 } from "./rules";
-export { OnboardedAccountWorkspaceSchema } from "./workspace";
+export { OnboardedAccountWorkspaceSchema, type AccountWorkspaceValue } from "./workspace";

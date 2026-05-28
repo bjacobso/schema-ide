@@ -46,7 +46,7 @@ import {
 } from "./policies";
 import { validateOnboardedRelations } from "./relations";
 
-type AccountWorkspaceValue = {
+export type AccountWorkspaceValue = {
   readonly account: OnboardedAccountConfig | null;
   readonly attributes: OnboardedAttributeCatalog | null;
   readonly forms: readonly OnboardedFormConfig[];
