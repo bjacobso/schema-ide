@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "@effect/vitest";
@@ -9,13 +10,22 @@ import {
   validateWorkspaceDirectory,
 } from "@schema-ide/cli";
 import { createOnboardedConfigCli } from "../src/cli";
-import { OnboardedAccountWorkspaceSchema, createOnboardedArtifactRuntime } from "../src/index";
+import {
+  OnboardedAccountWorkspaceSchema,
+  createOnboardedArtifactRuntime,
+  createOnboardedArtifactRuntimeFromProjectConfig,
+  parseOnboardedArtifactProjectConfig,
+} from "../src/index";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureDir = resolve(packageDir, "workspaces/onboarded-account-yaml/files");
 const fixtureConfigPath = resolve(
   packageDir,
   "workspaces/onboarded-account-yaml/schema-ide.config.ts",
+);
+const fixtureArtifactProjectPath = resolve(
+  packageDir,
+  "workspaces/onboarded-account-yaml/artifact-project.yaml",
 );
 
 describe("onboarded-config", () => {
@@ -78,6 +88,37 @@ describe("onboarded-config", () => {
     expect(
       (graph as { definitions: readonly { type: string }[] }).definitions.length,
     ).toBeGreaterThan(0);
+  });
+
+  it("loads the packaged artifact project yaml as the onboarded runtime configuration", async () => {
+    const config = parseOnboardedArtifactProjectConfig(
+      await readFile(fixtureArtifactProjectPath, "utf8"),
+    );
+    const files = await readSourceFilesFromDirectory({
+      directory: fixtureDir,
+      include: config.include,
+    });
+    const runtime = createOnboardedArtifactRuntimeFromProjectConfig({ config, files });
+
+    expect(config.files.map((route) => route.id)).toEqual([
+      "account",
+      "attributes",
+      "forms",
+      "formSubscriptions",
+      "documents",
+      "pdfInspections",
+      "pdfAnnotations",
+      "pdfMappings",
+      "policies",
+      "automations",
+      "imports",
+    ]);
+    await expect(
+      Effect.runPromise(runtime.view({ _tag: "Workspace", workspaceId: config.id }, "reflection")),
+    ).resolves.toMatchObject({
+      activeFormat: "yaml",
+      validationSummary: { valid: true },
+    });
   });
 
   it("validates onboarded account workspace references", () => {

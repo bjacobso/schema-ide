@@ -1,6 +1,12 @@
 export { OnboardedAccountConfigSchema, type OnboardedAccountConfig } from "./account";
 export {
+  OnboardedArtifactProjectConfigSchema,
+  OnboardedArtifactProjectRouteSchema,
   createOnboardedArtifactRuntime,
+  createOnboardedArtifactRuntimeFromProjectConfig,
+  parseOnboardedArtifactProjectConfig,
+  type OnboardedArtifactProjectConfig,
+  type OnboardedArtifactProjectRoute,
   type CreateOnboardedArtifactRuntimeOptions,
   type OnboardedArtifactRuntime,
 } from "./artifacts";
