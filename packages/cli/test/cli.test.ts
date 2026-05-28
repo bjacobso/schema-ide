@@ -32,6 +32,26 @@ describe("schema-ide-cli", () => {
 
     expect(workspace.id).toBe("workflow-fixture");
     expect(workspace.schema.reflect().map((schema) => schema.id)).toEqual(["Actions", "Workflows"]);
+    expect(
+      workspace.artifactProject?.capabilities({ _tag: "Workspace" }).map((cap) => cap.view),
+    ).toEqual(
+      expect.arrayContaining([
+        "decodedWorkspace",
+        "diagnostics",
+        "validationSummary",
+        "routeMatches",
+        "reflection",
+      ]),
+    );
+    expect(
+      workspace.artifactProject
+        ?.capabilities({
+          _tag: "WorkspaceFile",
+          workspaceId: workspace.id,
+          path: "actions/email.json",
+        })
+        .map((capability) => capability.routeId),
+    ).toEqual(expect.arrayContaining(["Actions"]));
   });
 
   it("reads local source files using include and exclude patterns", async () => {

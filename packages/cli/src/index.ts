@@ -4,8 +4,11 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  SchemaIdeArtifactProject,
+  createArtifactProjectFromWorkspace,
   createReflection,
   formatForPath,
+  isWorkspaceSchema,
   validateSchemaIdeValue,
   type ReflectedSchema,
   type SchemaIdeDocumentFormat,
@@ -49,12 +52,15 @@ export const defaultCliInclude = [
 ] as const;
 export const defaultCliExclude = [".git/**", "node_modules/**", "dist/**", "coverage/**"] as const;
 
+export type SchemaIdeCliArtifactProject = ReturnType<typeof createArtifactProjectFromWorkspace>;
+
 export interface SchemaIdeCliWorkspace<
   A = unknown,
   Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
 > {
   readonly id?: string | undefined;
   readonly schema: SchemaIdeInputSchema<A, Routes>;
+  readonly artifactProject?: SchemaIdeCliArtifactProject | undefined;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly include?: readonly string[] | undefined;
   readonly exclude?: readonly string[] | undefined;
@@ -137,7 +143,7 @@ export interface SchemaIdeServeOptions {
 export function defineSchemaIdeWorkspace<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap>(
   workspace: SchemaIdeCliWorkspace<A, Routes>,
 ): SchemaIdeCliWorkspace<A, Routes> {
-  return workspace;
+  return withArtifactProject(workspace);
 }
 
 export function createSchemaIdeCli(options: SchemaIdeCliOptions = {}): SchemaIdeCli {
@@ -268,7 +274,7 @@ async function runEmbeddedSchemaIdeCli(
     };
   }
 
-  return runSchemaIdeCliCommand(options, cliOptions.workspace);
+  return runSchemaIdeCliCommand(options, withArtifactProject(cliOptions.workspace));
 }
 
 async function runSchemaIdeCliMain(
@@ -316,7 +322,7 @@ async function runEmbeddedSchemaIdeCliMain(
   }
 
   try {
-    await runServeMain(cliOptions.workspace, options, cliOptions);
+    await runServeMain(withArtifactProject(cliOptions.workspace), options, cliOptions);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
@@ -380,7 +386,7 @@ export async function loadSchemaIdeWorkspaceConfig(
     );
   }
 
-  return workspace as SchemaIdeCliWorkspace;
+  return withArtifactProject(workspace as SchemaIdeCliWorkspace);
 }
 
 export async function serveSchemaIdeWorkspace({
@@ -555,7 +561,22 @@ async function resolveCliWorkspace(
     return loadSchemaIdeWorkspaceConfig(cliOptions.schemaPath);
   }
 
-  return cliOptions.workspace ?? null;
+  return cliOptions.workspace ? withArtifactProject(cliOptions.workspace) : null;
+}
+
+function withArtifactProject<A, Routes extends WorkspaceRouteMap = WorkspaceRouteMap>(
+  workspace: SchemaIdeCliWorkspace<A, Routes>,
+): SchemaIdeCliWorkspace<A, Routes> {
+  if (workspace.artifactProject) return workspace;
+
+  return {
+    ...workspace,
+    artifactProject: isWorkspaceSchema(workspace.schema)
+      ? createArtifactProjectFromWorkspace(workspace.schema, {
+          name: workspace.id ?? "schema-ide",
+        })
+      : SchemaIdeArtifactProject,
+  };
 }
 
 function parseArgs(
