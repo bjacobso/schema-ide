@@ -59,6 +59,7 @@ import { createArtifactWorkspaceClient } from "./workspace-client";
 
 export interface SchemaIdeWorkspaceViewProps<Routes extends WorkspaceRouteMap = WorkspaceRouteMap> {
   readonly workspace?: SchemaIdeWorkspaceService | undefined;
+  readonly project?: SchemaIdeArtifactRuntime | undefined;
   readonly artifacts?: SchemaIdeArtifactRuntime | undefined;
   readonly chat?: SchemaIdeChatAdapter | undefined;
   readonly title?: ReactNode | undefined;
@@ -106,6 +107,7 @@ const chatSidebarWidth = 360;
 
 export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = WorkspaceRouteMap>({
   workspace,
+  project,
   artifacts,
   chat,
   title,
@@ -115,13 +117,14 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
 }: SchemaIdeWorkspaceViewProps<Routes>) {
   const resolvedWorkspace = useMemo(() => {
     if (workspace) return workspace;
-    if (artifacts) {
-      return createArtifactWorkspaceClient(artifacts, {
+    const artifactRuntime = project ?? artifacts;
+    if (artifactRuntime) {
+      return createArtifactWorkspaceClient(artifactRuntime, {
         title: typeof title === "string" ? title : undefined,
       });
     }
-    throw new Error("SchemaIdeWorkspaceView requires either workspace or artifacts.");
-  }, [artifacts, title, workspace]);
+    throw new Error("SchemaIdeWorkspaceView requires workspace, project, or artifacts.");
+  }, [artifacts, project, title, workspace]);
   const [workspacePanel, setWorkspacePanel] = useState<SchemaIdeWorkspacePanel>(() =>
     previews.length || previewNavigation.length ? "preview" : "files",
   );

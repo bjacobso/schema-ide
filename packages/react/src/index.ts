@@ -1,5 +1,10 @@
 export { SchemaIde } from "./SchemaIde";
-export type { SchemaIdeArtifactProps, SchemaIdeProps, SchemaIdeSchemaProps } from "./SchemaIde";
+export type {
+  SchemaIdeArtifactProps,
+  SchemaIdeProjectProps,
+  SchemaIdeProps,
+  SchemaIdeSchemaProps,
+} from "./SchemaIde";
 export { SchemaIdeWorkspaceView } from "./SchemaIdeWorkspaceView";
 export type {
   PreviewDirectoryPreambleProps,

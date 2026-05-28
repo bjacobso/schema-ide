@@ -14,6 +14,7 @@ import {
   type SchemaIdePreviewComponentProps,
   type SchemaIdePreviewRegistration,
   type SchemaIdePreviewRegistrationForRoutes,
+  type SchemaIdeWorkspaceViewProps,
 } from "../src";
 import { pdfContentToDataUrl } from "../src/SchemaIdePdfFileViewer";
 import {
@@ -190,7 +191,9 @@ describe("schema-ide-react", () => {
     });
 
     expectTypeOf({ schema: DocumentSchema }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ project: artifacts }).toMatchTypeOf<SchemaIdeProps>();
     expectTypeOf({ artifacts }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ project: artifacts }).toMatchTypeOf<SchemaIdeWorkspaceViewProps>();
   });
 
   it("memory workspace client exposes snapshots, writes, and watch events", async () => {
