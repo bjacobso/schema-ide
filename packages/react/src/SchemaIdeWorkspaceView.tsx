@@ -197,16 +197,16 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <div
-        className="grid min-h-12 shrink-0 border-b max-[760px]:flex max-[760px]:flex-col"
+        className="grid min-h-[var(--schema-ide-toolbar-height)] shrink-0 border-b max-[760px]:flex max-[760px]:flex-col"
         style={shellGridStyle}
       >
         {showChat ? (
-          <div className="flex min-w-0 items-center gap-2 border-r bg-sidebar/60 px-4 font-semibold max-[760px]:h-12 max-[760px]:border-r-0">
+          <div className="flex min-w-0 items-center gap-2 border-r bg-sidebar/60 px-4 font-semibold max-[760px]:h-[var(--schema-ide-toolbar-height)] max-[760px]:border-r-0">
             <FileCode2 className="size-4 shrink-0" />
             <span className="truncate">Schema IDE</span>
           </div>
         ) : null}
-        <div className="flex min-h-12 min-w-0 items-center gap-3 px-4 max-[760px]:flex-wrap max-[760px]:py-2">
+        <div className="flex min-h-[var(--schema-ide-toolbar-height)] min-w-0 items-center gap-[var(--schema-ide-gap)] px-4 max-[760px]:flex-wrap max-[760px]:py-[var(--schema-ide-app-header-padding-y)]">
           {!showChat ? (
             <div className="flex min-w-0 items-center gap-2 font-semibold">
               <FileCode2 className="size-4 shrink-0" />
@@ -267,7 +267,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
         <div className="flex min-w-0 flex-col overflow-hidden">
           {workspacePanel === "preview" ? (
             <>
-              <div className="flex h-10 shrink-0 items-center gap-2 border-b px-4">
+              <div className="flex h-[var(--schema-ide-toolbar-height)] shrink-0 items-center gap-2 border-b px-4">
                 <PreviewBreadcrumbs
                   files={files}
                   location={activeLocation}
@@ -337,7 +337,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
                 className="flex min-h-0 shrink-0 flex-col border-r max-[760px]:max-h-56 max-[760px]:!w-full max-[760px]:border-b max-[760px]:border-r-0"
                 style={{ width: 280 }}
               >
-                <div className="flex h-10 items-center gap-2 border-b px-3 text-sm font-medium">
+                <div className="flex h-[var(--schema-ide-toolbar-height)] items-center gap-2 border-b px-3 text-sm font-medium">
                   <FolderTree className="size-4" />
                   Files
                   <IconButton
@@ -363,7 +363,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+                <div className="flex h-[var(--schema-ide-toolbar-height)] shrink-0 items-center gap-2 border-b px-3">
                   <div className="min-w-0 flex-1">
                     <PreviewBreadcrumbs
                       emptyLabel="No location"
@@ -451,7 +451,7 @@ export function SchemaIdeWorkspaceView<Routes extends WorkspaceRouteMap = Worksp
           )}
           {showDebug ? (
             <div className="shrink-0 border-t">
-              <div className="flex h-9 items-center gap-2 px-2">
+              <div className="flex h-[var(--schema-ide-debug-toolbar-height)] items-center gap-2 px-2">
                 <Button
                   size="small"
                   variant="text"
@@ -580,7 +580,7 @@ function SchemaIdeDirectoryPreview({
 
   return (
     <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
-      <div className="mx-auto grid max-w-5xl gap-4 p-4">
+      <div className="mx-auto grid max-w-5xl gap-[var(--schema-ide-content-padding)] p-[var(--schema-ide-content-padding)]">
         {Preamble ? (
           <Preamble
             files={files}
@@ -628,7 +628,7 @@ function SchemaIdeDirectoryDetails({
 
   return (
     <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
-      <div className="mx-auto grid max-w-5xl gap-4 p-4">
+      <div className="mx-auto grid max-w-5xl gap-[var(--schema-ide-content-padding)] p-[var(--schema-ide-content-padding)]">
         <div>
           <div className="text-sm font-medium">
             {registration?.label ?? labelForPath(location.path)}
@@ -652,7 +652,7 @@ function SchemaIdeDirectoryDetails({
 
 function DirectoryReadme({ file }: { readonly file: SourceFile }) {
   return (
-    <div className="rounded-md border bg-background p-4">
+    <div className="rounded-md border bg-background p-[var(--schema-ide-content-padding)]">
       <div className="mb-3 font-mono text-xs text-muted-foreground">{file.path}</div>
       <MarkdownContent content={file.content} />
     </div>
@@ -746,7 +746,7 @@ function DirectoryItemList({
 
   return (
     <div className="rounded-md border bg-background">
-      <div className="flex items-center gap-2 border-b p-3">
+      <div className="flex items-center gap-2 border-b p-[var(--schema-ide-panel-padding)]">
         <Search className="size-4 text-muted-foreground" />
         <TextField
           value={query}
@@ -760,7 +760,7 @@ function DirectoryItemList({
         {filteredDirectories.map((directory) => (
           <button
             key={directory}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/60"
+            className="flex w-full items-center gap-[var(--schema-ide-gap)] px-[var(--schema-ide-content-padding)] py-[var(--schema-ide-panel-padding)] text-left text-sm hover:bg-muted/60"
             onClick={() => onOpenDirectory(directory)}
             type="button"
           >
@@ -774,7 +774,7 @@ function DirectoryItemList({
         {filteredItems.map((item) => (
           <button
             key={item.file.path}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/60"
+            className="flex w-full items-center gap-[var(--schema-ide-gap)] px-[var(--schema-ide-content-padding)] py-[var(--schema-ide-panel-padding)] text-left text-sm hover:bg-muted/60"
             onClick={() => onOpenFile(item.file.path)}
             type="button"
           >

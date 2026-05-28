@@ -1,19 +1,29 @@
 import { alpha, createTheme } from "@mui/material/styles";
 
 export type PlaygroundThemeMode = "dark" | "light";
-export type PlaygroundThemeFamily = "blueprint" | "neutral" | "stripe" | "material";
+export type PlaygroundThemeFamily =
+  | "blueprint"
+  | "neutral"
+  | "stripe"
+  | "material"
+  | "icloud"
+  | "jetbrains"
+  | "basecamp";
 export type PlaygroundRadius = "compact" | "soft" | "round";
+export type PlaygroundDensity = "comfortable" | "cozy" | "compact";
 
 export interface PlaygroundThemeSettings {
   readonly family: PlaygroundThemeFamily;
   readonly mode: PlaygroundThemeMode;
   readonly radius: PlaygroundRadius;
+  readonly density: PlaygroundDensity;
 }
 
 export const defaultPlaygroundThemeSettings: PlaygroundThemeSettings = {
-  family: "blueprint",
+  family: "neutral",
   mode: "light",
   radius: "soft",
+  density: "cozy",
 };
 
 export const playgroundThemeFamilyOptions: ReadonlyArray<{
@@ -24,6 +34,9 @@ export const playgroundThemeFamilyOptions: ReadonlyArray<{
   { id: "neutral", label: "Neutral" },
   { id: "stripe", label: "Stripe" },
   { id: "material", label: "Material You" },
+  { id: "icloud", label: "iCloud" },
+  { id: "jetbrains", label: "JetBrains IDE" },
+  { id: "basecamp", label: "Basecamp" },
 ];
 
 export const playgroundRadiusOptions: ReadonlyArray<{
@@ -35,6 +48,104 @@ export const playgroundRadiusOptions: ReadonlyArray<{
   { id: "compact", label: "Compact", cssRadius: "0.25rem", muiRadius: 4 },
   { id: "soft", label: "Soft", cssRadius: "0.5rem", muiRadius: 8 },
   { id: "round", label: "Round", cssRadius: "0.875rem", muiRadius: 14 },
+];
+
+export const playgroundDensityOptions: ReadonlyArray<{
+  readonly id: PlaygroundDensity;
+  readonly label: string;
+  readonly appHeaderMinHeight: string;
+  readonly appHeaderPaddingY: string;
+  readonly bodyFontSize: number;
+  readonly buttonPadding: string;
+  readonly buttonSmallPadding: string;
+  readonly checkboxPadding: number;
+  readonly chipHeight: number;
+  readonly contentPadding: string;
+  readonly controlHeight: number;
+  readonly debugToolbarHeight: string;
+  readonly gap: string;
+  readonly iconButtonSize: number;
+  readonly inputPadding: string;
+  readonly inputPaddingY: number;
+  readonly menuItemMinHeight: number;
+  readonly menuItemPaddingY: number;
+  readonly menuPaddingY: number;
+  readonly panelPadding: string;
+  readonly smallControlHeight: number;
+  readonly toolbarHeight: string;
+}> = [
+  {
+    id: "comfortable",
+    label: "Comfortable",
+    appHeaderMinHeight: "3.25rem",
+    appHeaderPaddingY: "0.625rem",
+    bodyFontSize: 13.5,
+    buttonPadding: "5px 12px",
+    buttonSmallPadding: "4px 10px",
+    checkboxPadding: 5,
+    chipHeight: 22,
+    contentPadding: "1.125rem",
+    controlHeight: 32,
+    debugToolbarHeight: "2.5rem",
+    gap: "0.875rem",
+    iconButtonSize: 32,
+    inputPadding: "7px 10px",
+    inputPaddingY: 7,
+    menuItemMinHeight: 32,
+    menuItemPaddingY: 5,
+    menuPaddingY: 5,
+    panelPadding: "1rem",
+    smallControlHeight: 30,
+    toolbarHeight: "2.75rem",
+  },
+  {
+    id: "cozy",
+    label: "Cozy",
+    appHeaderMinHeight: "3rem",
+    appHeaderPaddingY: "0.5rem",
+    bodyFontSize: 13,
+    buttonPadding: "3px 10px",
+    buttonSmallPadding: "2px 8px",
+    checkboxPadding: 4,
+    chipHeight: 20,
+    contentPadding: "1rem",
+    controlHeight: 28,
+    debugToolbarHeight: "2.25rem",
+    gap: "0.75rem",
+    iconButtonSize: 28,
+    inputPadding: "5px 8px",
+    inputPaddingY: 5,
+    menuItemMinHeight: 28,
+    menuItemPaddingY: 4,
+    menuPaddingY: 4,
+    panelPadding: "0.75rem",
+    smallControlHeight: 26,
+    toolbarHeight: "2.5rem",
+  },
+  {
+    id: "compact",
+    label: "Compact",
+    appHeaderMinHeight: "2.625rem",
+    appHeaderPaddingY: "0.375rem",
+    bodyFontSize: 12.5,
+    buttonPadding: "2px 8px",
+    buttonSmallPadding: "1px 7px",
+    checkboxPadding: 3,
+    chipHeight: 18,
+    contentPadding: "0.75rem",
+    controlHeight: 26,
+    debugToolbarHeight: "2rem",
+    gap: "0.5rem",
+    iconButtonSize: 26,
+    inputPadding: "4px 7px",
+    inputPaddingY: 4,
+    menuItemMinHeight: 24,
+    menuItemPaddingY: 3,
+    menuPaddingY: 3,
+    panelPadding: "0.5rem",
+    smallControlHeight: 24,
+    toolbarHeight: "2.25rem",
+  },
 ];
 
 interface PlaygroundPalette {
@@ -272,12 +383,175 @@ const palettes: Record<PlaygroundThemeFamily, Record<PlaygroundThemeMode, Playgr
       destructive: "#ffb4ab",
     },
   },
+  icloud: {
+    light: {
+      background: "#f5f7fb",
+      card: "#ffffff",
+      chart2: "#34c759",
+      chart3: "#ff9f0a",
+      chart4: "#af52de",
+      foreground: "#15171c",
+      input: "#cfd6e2",
+      muted: "#edf1f7",
+      mutedForeground: "#667085",
+      popover: "#ffffff",
+      primary: "#007aff",
+      primaryContainer: "#dcedff",
+      primaryForeground: "#ffffff",
+      ring: "#0a84ff",
+      secondary: "#4b5565",
+      secondaryForeground: "#ffffff",
+      surface: "#fbfcff",
+      surfaceContainer: "#edf1f7",
+      surfaceContainerHigh: "#e4eaf2",
+      surfaceContainerHighest: "#d8e0ea",
+      surfaceContainerLow: "#f5f7fb",
+      border: "#d8e0ea",
+      destructive: "#ff3b30",
+    },
+    dark: {
+      background: "#0f1318",
+      card: "#171c22",
+      chart2: "#30d158",
+      chart3: "#ffd60a",
+      chart4: "#bf5af2",
+      foreground: "#f4f7fb",
+      input: "#333b46",
+      muted: "#20262e",
+      mutedForeground: "#aab4c0",
+      popover: "#1b2128",
+      primary: "#64d2ff",
+      primaryContainer: "#123a52",
+      primaryForeground: "#06131c",
+      ring: "#64d2ff",
+      secondary: "#d3dce8",
+      secondaryForeground: "#111820",
+      surface: "#151a20",
+      surfaceContainer: "#1e242c",
+      surfaceContainerHigh: "#28303a",
+      surfaceContainerHighest: "#333d49",
+      surfaceContainerLow: "#12171d",
+      border: "#333d49",
+      destructive: "#ff6961",
+    },
+  },
+  jetbrains: {
+    light: {
+      background: "#f4f4f5",
+      card: "#ffffff",
+      chart2: "#00a3a3",
+      chart3: "#ff8a00",
+      chart4: "#d946ef",
+      foreground: "#1f2328",
+      input: "#cfd3da",
+      muted: "#eceef2",
+      mutedForeground: "#636b77",
+      popover: "#ffffff",
+      primary: "#4b6cff",
+      primaryContainer: "#e3e8ff",
+      primaryForeground: "#ffffff",
+      ring: "#5b72f6",
+      secondary: "#394150",
+      secondaryForeground: "#ffffff",
+      surface: "#fbfbfc",
+      surfaceContainer: "#eceef2",
+      surfaceContainerHigh: "#e2e5ea",
+      surfaceContainerHighest: "#d6dae2",
+      surfaceContainerLow: "#f4f4f5",
+      border: "#d6dae2",
+      destructive: "#db3b3b",
+    },
+    dark: {
+      background: "#1e1f22",
+      card: "#252629",
+      chart2: "#4db6ac",
+      chart3: "#ffb74d",
+      chart4: "#c77dff",
+      foreground: "#ced0d6",
+      input: "#4b4f58",
+      muted: "#2b2d30",
+      mutedForeground: "#a5a8b0",
+      popover: "#2b2d30",
+      primary: "#6b9dff",
+      primaryContainer: "#293f66",
+      primaryForeground: "#071326",
+      ring: "#6b9dff",
+      secondary: "#c4c8d4",
+      secondaryForeground: "#1e1f22",
+      surface: "#252629",
+      surfaceContainer: "#2b2d30",
+      surfaceContainerHigh: "#34373d",
+      surfaceContainerHighest: "#3e424a",
+      surfaceContainerLow: "#202124",
+      border: "#3e424a",
+      destructive: "#ff7b72",
+    },
+  },
+  basecamp: {
+    light: {
+      background: "#f5f1e8",
+      card: "#fffdf6",
+      chart2: "#2f8f5f",
+      chart3: "#e8a838",
+      chart4: "#c0392b",
+      foreground: "#1a1a1a",
+      input: "#d6cfbd",
+      muted: "#ece5d3",
+      mutedForeground: "#5b574c",
+      popover: "#fffdf6",
+      primary: "#1d4ed8",
+      primaryContainer: "#fef3a3",
+      primaryForeground: "#ffffff",
+      ring: "#2563eb",
+      secondary: "#2f2f2f",
+      secondaryForeground: "#ffffff",
+      surface: "#fffdf6",
+      surfaceContainer: "#ece5d3",
+      surfaceContainerHigh: "#e1d9c3",
+      surfaceContainerHighest: "#d4cab1",
+      surfaceContainerLow: "#f5f1e8",
+      border: "#cabf9f",
+      destructive: "#b91c1c",
+    },
+    dark: {
+      background: "#1a1814",
+      card: "#221f1a",
+      chart2: "#5fbf86",
+      chart3: "#f0c060",
+      chart4: "#e07060",
+      foreground: "#f2ead8",
+      input: "#3d3830",
+      muted: "#2a2620",
+      mutedForeground: "#b0a892",
+      popover: "#221f1a",
+      primary: "#7da6ff",
+      primaryContainer: "#3d3a20",
+      primaryForeground: "#0c1428",
+      ring: "#7da6ff",
+      secondary: "#d6cfbd",
+      secondaryForeground: "#1a1814",
+      surface: "#221f1a",
+      surfaceContainer: "#2a2620",
+      surfaceContainerHigh: "#332e26",
+      surfaceContainerHighest: "#3d372d",
+      surfaceContainerLow: "#1f1c17",
+      border: "#3d372d",
+      destructive: "#f08070",
+    },
+  },
 };
 
 function getRadius(radius: PlaygroundRadius) {
   return (
     playgroundRadiusOptions.find((option) => option.id === radius) ??
     playgroundRadiusOptions.find((option) => option.id === defaultPlaygroundThemeSettings.radius)!
+  );
+}
+
+function getDensity(density: PlaygroundDensity) {
+  return (
+    playgroundDensityOptions.find((option) => option.id === density) ??
+    playgroundDensityOptions.find((option) => option.id === defaultPlaygroundThemeSettings.density)!
   );
 }
 
@@ -290,6 +564,7 @@ export function getPlaygroundCssVariables(
 ): Record<string, string> {
   const palette = getPalette(settings);
   const radius = getRadius(settings.radius);
+  const density = getDensity(settings.density);
   return {
     "--background": palette.background,
     "--foreground": palette.foreground,
@@ -323,6 +598,14 @@ export function getPlaygroundCssVariables(
     "--sidebar-border": palette.border,
     "--sidebar-ring": palette.ring,
     "--radius": radius.cssRadius,
+    "--schema-ide-app-header-min-height": density.appHeaderMinHeight,
+    "--schema-ide-app-header-padding-y": density.appHeaderPaddingY,
+    "--schema-ide-content-padding": density.contentPadding,
+    "--schema-ide-control-height": `${density.controlHeight}px`,
+    "--schema-ide-debug-toolbar-height": density.debugToolbarHeight,
+    "--schema-ide-gap": density.gap,
+    "--schema-ide-panel-padding": density.panelPadding,
+    "--schema-ide-toolbar-height": density.toolbarHeight,
   };
 }
 
@@ -330,6 +613,7 @@ export function applyPlaygroundThemeSettings(settings: PlaygroundThemeSettings) 
   document.documentElement.dataset["theme"] = settings.mode;
   document.documentElement.dataset["themeFamily"] = settings.family;
   document.documentElement.dataset["radius"] = settings.radius;
+  document.documentElement.dataset["density"] = settings.density;
   document.documentElement.classList.toggle("dark", settings.mode === "dark");
   document.documentElement.style.colorScheme = settings.mode;
   const variables = getPlaygroundCssVariables(settings);
@@ -341,6 +625,7 @@ export function applyPlaygroundThemeSettings(settings: PlaygroundThemeSettings) 
 export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
   const palette = getPalette(settings);
   const radius = getRadius(settings.radius).muiRadius;
+  const density = getDensity(settings.density);
   const controlRadius = Math.max(4, radius - 2);
   const menuItemRadius = Math.max(3, radius - 3);
   const isDark = settings.mode === "dark";
@@ -384,7 +669,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
     spacing: 4,
     typography: {
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: 13,
+      fontSize: density.bodyFontSize,
       htmlFontSize: 16,
       h1: { fontSize: 24, fontWeight: 650, lineHeight: 1.2 },
       h2: { fontSize: 20, fontWeight: 650, lineHeight: 1.25 },
@@ -404,7 +689,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
           body: {
             backgroundColor: palette.background,
             color: palette.foreground,
-            fontSize: 13,
+            fontSize: density.bodyFontSize,
           },
           "::selection": {
             backgroundColor: alpha(palette.primary, 0.24),
@@ -419,14 +704,14 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
         styleOverrides: {
           root: {
             borderRadius: controlRadius,
-            minHeight: 28,
-            padding: "3px 10px",
+            minHeight: density.controlHeight,
+            padding: density.buttonPadding,
           },
           sizeSmall: {
-            minHeight: 26,
-            padding: "2px 8px",
+            minHeight: density.smallControlHeight,
+            padding: density.buttonSmallPadding,
           },
-          containedPrimary: {
+          contained: {
             backgroundColor: palette.primary,
           },
           outlined: {
@@ -453,16 +738,16 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
         styleOverrides: {
           root: {
             borderRadius: controlRadius,
-            height: 28,
-            padding: 4,
-            width: 28,
+            height: density.iconButtonSize,
+            padding: density.checkboxPadding,
+            width: density.iconButtonSize,
             "&:hover": {
               backgroundColor: hover,
             },
           },
           sizeMedium: {
-            height: 30,
-            width: 30,
+            height: density.iconButtonSize + 2,
+            width: density.iconButtonSize + 2,
           },
         },
       },
@@ -475,7 +760,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             borderRadius: controlRadius,
             fontSize: 11,
             fontWeight: 600,
-            height: 20,
+            height: density.chipHeight,
           },
           label: {
             paddingLeft: 6,
@@ -485,9 +770,11 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             backgroundColor: palette.surface,
             borderColor: palette.border,
           },
-          filledSecondary: {
-            backgroundColor: palette.surfaceContainerHighest,
-            color: palette.foreground,
+          filled: {
+            "&.MuiChip-colorSecondary": {
+              backgroundColor: palette.surfaceContainerHighest,
+              color: palette.foreground,
+            },
           },
         },
       },
@@ -503,8 +790,8 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             fontSize: 12,
           },
           input: {
-            paddingBottom: 5,
-            paddingTop: 5,
+            paddingBottom: density.inputPaddingY,
+            paddingTop: density.inputPaddingY,
           },
         },
       },
@@ -513,7 +800,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
           root: {
             backgroundColor: palette.surface,
             borderRadius: controlRadius,
-            minHeight: 30,
+            minHeight: density.controlHeight + 2,
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: palette.border,
             },
@@ -527,7 +814,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             },
           },
           input: {
-            padding: "5px 8px",
+            padding: density.inputPadding,
           },
         },
       },
@@ -538,8 +825,8 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
         styleOverrides: {
           select: {
             minHeight: "unset",
-            paddingBottom: 5,
-            paddingTop: 5,
+            paddingBottom: density.inputPaddingY,
+            paddingTop: density.inputPaddingY,
           },
         },
       },
@@ -554,8 +841,8 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             borderRadius: radius,
           },
           list: {
-            paddingBottom: 4,
-            paddingTop: 4,
+            paddingBottom: density.menuPaddingY,
+            paddingTop: density.menuPaddingY,
           },
         },
       },
@@ -566,9 +853,9 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             fontSize: 12,
             marginLeft: 4,
             marginRight: 4,
-            minHeight: 28,
-            paddingBottom: 4,
-            paddingTop: 4,
+            minHeight: density.menuItemMinHeight,
+            paddingBottom: density.menuItemPaddingY,
+            paddingTop: density.menuItemPaddingY,
             "&.Mui-selected": {
               backgroundColor: selected,
             },
@@ -593,8 +880,8 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
             borderRadius: controlRadius,
             color: palette.foreground,
             fontSize: 12,
-            minHeight: 28,
-            padding: "3px 9px",
+            minHeight: density.controlHeight,
+            padding: density.buttonPadding,
             textTransform: "none",
             "&.Mui-selected": {
               backgroundColor: selected,
@@ -612,7 +899,7 @@ export function createPlaygroundTheme(settings: PlaygroundThemeSettings) {
         },
         styleOverrides: {
           root: {
-            padding: 4,
+            padding: density.checkboxPadding,
           },
         },
       },

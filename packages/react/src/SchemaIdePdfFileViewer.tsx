@@ -6,8 +6,8 @@ export function SchemaIdePdfFileViewer({ file }: { readonly file: SourceFile }) 
 
   if (!dataUrl) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6">
-        <div className="max-w-sm rounded-md border bg-background p-4 text-sm text-muted-foreground">
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-[var(--schema-ide-content-padding)]">
+        <div className="max-w-sm rounded-md border bg-background p-[var(--schema-ide-content-padding)] text-sm text-muted-foreground">
           Unable to display PDF content.
         </div>
       </div>

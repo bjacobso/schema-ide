@@ -25,8 +25,10 @@ import {
   applyPlaygroundThemeSettings,
   createPlaygroundTheme,
   defaultPlaygroundThemeSettings,
+  playgroundDensityOptions,
   playgroundRadiusOptions,
   playgroundThemeFamilyOptions,
+  type PlaygroundDensity,
   type PlaygroundRadius,
   type PlaygroundThemeFamily,
   type PlaygroundThemeMode,
@@ -167,7 +169,8 @@ function App() {
 
   const toggleTheme = () => {
     setThemeSettings((current) => {
-      const nextSettings = { ...current, mode: current.mode === "dark" ? "light" : "dark" };
+      const mode: PlaygroundThemeMode = current.mode === "dark" ? "light" : "dark";
+      const nextSettings = { ...current, mode };
       persistThemeSettings(nextSettings);
       return nextSettings;
     });
@@ -184,6 +187,14 @@ function App() {
   const updateThemeRadius = (radius: PlaygroundRadius) => {
     setThemeSettings((current) => {
       const nextSettings = { ...current, radius };
+      persistThemeSettings(nextSettings);
+      return nextSettings;
+    });
+  };
+
+  const updateThemeDensity = (density: PlaygroundDensity) => {
+    setThemeSettings((current) => {
+      const nextSettings = { ...current, density };
       persistThemeSettings(nextSettings);
       return nextSettings;
     });
@@ -215,7 +226,7 @@ function App() {
     <ThemeProvider theme={muiTheme}>
       <CssBaseline />
       <main className="flex h-svh min-h-0 flex-col bg-muted text-foreground">
-        <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-3 border-b border-border bg-secondary px-4 py-2">
+        <div className="flex min-h-[var(--schema-ide-app-header-min-height)] shrink-0 flex-wrap items-center gap-[var(--schema-ide-gap)] border-b border-border bg-secondary px-4 py-[var(--schema-ide-app-header-padding-y)]">
           <div className="min-w-0">
             <div className="text-sm font-semibold">Schema IDE Playground</div>
             {workspaceModeDescription ? (
@@ -223,7 +234,7 @@ function App() {
             ) : null}
           </div>
 
-          <div className="ml-auto flex min-w-0 items-center gap-3 max-[640px]:ml-0 max-[640px]:w-full max-[640px]:flex-wrap">
+          <div className="ml-auto flex min-w-0 items-center gap-[var(--schema-ide-gap)] max-[640px]:ml-0 max-[640px]:w-full max-[640px]:flex-wrap">
             {workspaceMode === "local-filesystem" || workspaceMode === "cloudflare" ? null : (
               <>
                 <FormControl
@@ -300,6 +311,22 @@ function App() {
               </MuiSelect>
             </FormControl>
 
+            <FormControl className="min-w-32 max-[640px]:min-w-0 max-[640px]:flex-1" size="small">
+              <MuiSelect
+                value={themeSettings.density}
+                onChange={(event: SelectChangeEvent<PlaygroundDensity>) => {
+                  updateThemeDensity(event.target.value as PlaygroundDensity);
+                }}
+                inputProps={{ "aria-label": "Component density" }}
+              >
+                {playgroundDensityOptions.map((option) => (
+                  <MenuItem key={option.id} value={option.id}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </MuiSelect>
+            </FormControl>
+
             {canCreateHostedWorkspace && workspaceMode !== "cloudflare" ? (
               <Button
                 className={workspaceMode === "local-filesystem" ? "ml-auto" : undefined}
@@ -339,7 +366,7 @@ function App() {
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 p-3">
+        <div className="min-h-0 flex-1 p-[var(--schema-ide-panel-padding)]">
           <div className="h-full min-h-0 overflow-hidden rounded-lg border border-border bg-background shadow-sm">
             <SchemaIdeWorkspaceView
               key={
@@ -405,6 +432,9 @@ function readStoredThemeSettings(): PlaygroundThemeSettings | null {
         family: parsed.family,
         mode: parsed.mode,
         radius: parsed.radius,
+        density: isPlaygroundDensity(parsed.density)
+          ? parsed.density
+          : defaultPlaygroundThemeSettings.density,
       };
     }
   } catch {
@@ -432,4 +462,8 @@ function isPlaygroundThemeFamily(value: unknown): value is PlaygroundThemeFamily
 
 function isPlaygroundRadius(value: unknown): value is PlaygroundRadius {
   return playgroundRadiusOptions.some((option) => option.id === value);
+}
+
+function isPlaygroundDensity(value: unknown): value is PlaygroundDensity {
+  return playgroundDensityOptions.some((option) => option.id === value);
 }

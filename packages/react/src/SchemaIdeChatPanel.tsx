@@ -100,7 +100,7 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r bg-muted/20">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
+      <div className="flex h-[var(--schema-ide-toolbar-height)] shrink-0 items-center gap-2 border-b px-3">
         <Bot className="size-4" />
         <span className="text-sm font-medium">Chat</span>
         {chat.models ? (
@@ -121,8 +121,8 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
         ) : null}
       </div>
       <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
-        <div className="space-y-3 p-3">
-          <div className="rounded-md border bg-background p-3 text-xs text-muted-foreground">
+        <div className="space-y-[var(--schema-ide-panel-padding)] p-[var(--schema-ide-panel-padding)]">
+          <div className="rounded-md border bg-background p-[var(--schema-ide-panel-padding)] text-xs text-muted-foreground">
             <div className="mb-1 flex items-center gap-1 font-medium text-foreground">
               {reflection.validationSummary.valid ? (
                 <CheckCircle2 className="size-3.5 text-green-600" />
@@ -143,19 +143,19 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
             ),
           )}
           {pending ? (
-            <div className="flex items-center gap-2 rounded-md border bg-background p-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-md border bg-background p-[var(--schema-ide-panel-padding)] text-xs text-muted-foreground">
               <RefreshCw className="size-3.5 animate-spin" />
               Waiting for assistant...
             </div>
           ) : null}
           {error ? (
-            <div className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">
+            <div className="rounded-md border border-destructive/40 p-[var(--schema-ide-panel-padding)] text-xs text-destructive">
               {error}
             </div>
           ) : null}
         </div>
       </Box>
-      <div className="shrink-0 border-t bg-background p-3">
+      <div className="shrink-0 border-t bg-background p-[var(--schema-ide-panel-padding)]">
         <TextField
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -200,7 +200,7 @@ export function SchemaIdeChatPanel({ chat, reflection, tools, readOnly }: Schema
 function ChatMessageCard({ message }: { readonly message: SchemaIdeChatMessage }) {
   return (
     <div
-      className={`rounded-md border p-3 text-sm ${
+      className={`rounded-md border p-[var(--schema-ide-panel-padding)] text-sm ${
         message.role === "user" ? "bg-primary text-primary-foreground" : "bg-background"
       }`}
     >
@@ -219,7 +219,7 @@ function ToolCallCard({ toolCall }: { readonly toolCall: SchemaIdeToolCall }) {
       open={toolCall.status !== "success"}
       className="group overflow-hidden rounded-md border bg-background text-xs shadow-sm"
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-[var(--schema-ide-panel-padding)] py-2 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <span
           className={`flex size-5 shrink-0 items-center justify-center rounded-full ${status.iconClass}`}
         >
@@ -234,7 +234,7 @@ function ToolCallCard({ toolCall }: { readonly toolCall: SchemaIdeToolCall }) {
         </div>
         <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
-      <div className="space-y-3 border-t bg-muted/20 p-3">
+      <div className="space-y-[var(--schema-ide-panel-padding)] border-t bg-muted/20 p-[var(--schema-ide-panel-padding)]">
         <ToolJsonBlock label="Parameters" value={toolCall.args} />
         {hasResult ? (
           <ToolJsonBlock
@@ -243,7 +243,7 @@ function ToolCallCard({ toolCall }: { readonly toolCall: SchemaIdeToolCall }) {
             tone={toolCall.status === "error" ? "error" : "default"}
           />
         ) : (
-          <div className="rounded-md border border-dashed bg-background/70 p-3 text-muted-foreground">
+          <div className="rounded-md border border-dashed bg-background/70 p-[var(--schema-ide-panel-padding)] text-muted-foreground">
             Waiting for tool output...
           </div>
         )}

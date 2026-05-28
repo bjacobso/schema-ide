@@ -105,7 +105,7 @@ export function SchemaIdeFileTree({
 
   return (
     <Box className="min-h-0 flex-1" sx={{ overflow: "auto" }}>
-      <div className="p-2">
+      <div className="p-[var(--schema-ide-panel-padding)]">
         {tree.children.map((node) => (
           <FileTreeNodeView
             key={node.path}
@@ -156,7 +156,7 @@ function FileTreeNodeView({
     return (
       <div>
         <div
-          className={`mb-1 flex h-7 w-full items-center gap-1 rounded text-xs ${
+          className={`mb-1 flex h-[var(--schema-ide-control-height,1.75rem)] w-full items-center gap-1 rounded text-xs ${
             active ? "bg-primary text-primary-foreground" : "hover:bg-muted"
           }`}
           style={{ paddingLeft: depth * 12 + 4 }}
@@ -210,7 +210,7 @@ function FileTreeNodeView({
   const active = activePath === node.path;
   return (
     <button
-      className={`mb-1 flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-xs ${
+      className={`mb-1 flex h-[var(--schema-ide-control-height,1.75rem)] w-full items-center gap-1.5 rounded px-1.5 text-left text-xs ${
         active ? "bg-primary text-primary-foreground" : "hover:bg-muted"
       }`}
       style={{ paddingLeft: depth * 12 + 24 }}
