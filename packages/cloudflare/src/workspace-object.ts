@@ -22,6 +22,7 @@ import {
   SchemaIdeWorkspaceBranchRpcGroup,
   SchemaIdeWorkspaceError,
   SchemaIdeWorkspaceRpcGroup,
+  toWorkspaceRpcError,
   type ArchiveWorkspaceBranchResponse,
   type CompareWorkspaceBranchRequest,
   type CreateWorkspaceBranchRequest,
@@ -41,10 +42,6 @@ import {
   type WorkspacePreviewResponse,
   type WorkspaceSnapshot,
 } from "@schema-ide/protocol";
-import {
-  makeSchemaIdeWorkspaceBranchRpcLayer,
-  makeSchemaIdeWorkspaceRpcLayer,
-} from "@schema-ide/server";
 import { Effect, Layer, Stream } from "effect";
 import { Etag, HttpRouter, HttpServer } from "effect/unstable/http";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
@@ -76,6 +73,38 @@ const filePrefix = "file:";
 const mainBranchId = "main";
 const branchKeyPrefix = "branch:";
 const defaultTemplateId = "workflow-json";
+
+const makeHostedWorkspaceRpcLayer = (workspace: SchemaIdeWorkspaceService) =>
+  SchemaIdeWorkspaceRpcGroup.toLayer(
+    SchemaIdeWorkspaceRpcGroup.of({
+      GetCapabilities: () => workspace.getCapabilities.pipe(Effect.mapError(toWorkspaceRpcError)),
+      GetSnapshot: () => workspace.getSnapshot.pipe(Effect.mapError(toWorkspaceRpcError)),
+      WatchWorkspace: () => workspace.watchWorkspace.pipe(Stream.mapError(toWorkspaceRpcError)),
+      ApplyWorkspaceChange: (change) =>
+        workspace.applyChange(change).pipe(Effect.mapError(toWorkspaceRpcError)),
+      PreviewWorkspaceFiles: (request) =>
+        workspace.previewFiles(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+    }),
+  );
+
+const makeHostedWorkspaceBranchRpcLayer = (branches: SchemaIdeWorkspaceBranchService) =>
+  SchemaIdeWorkspaceBranchRpcGroup.toLayer(
+    SchemaIdeWorkspaceBranchRpcGroup.of({
+      ListBranches: () => branches.listBranches.pipe(Effect.mapError(toWorkspaceRpcError)),
+      CreateBranch: (request) =>
+        branches.createBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+      GetBranch: (request) =>
+        branches.getBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+      CompareBranch: (request) =>
+        branches.compareBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+      MergeBranch: (request) =>
+        branches.mergeBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+      DeleteBranch: (request) =>
+        branches.deleteBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+      ArchiveBranch: (request) =>
+        branches.archiveBranch(request).pipe(Effect.mapError(toWorkspaceRpcError)),
+    }),
+  );
 
 export class SchemaIdeWorkspaceObject extends DurableObject {
   private readonly workspaceHandlers = new Map<string, (request: Request) => Promise<Response>>();
@@ -118,7 +147,7 @@ export class SchemaIdeWorkspaceObject extends DurableObject {
       path: "*",
       protocol: "http",
     }).pipe(
-      Layer.provide([makeSchemaIdeWorkspaceRpcLayer(workspace), RpcSerialization.layerNdjson]),
+      Layer.provide([makeHostedWorkspaceRpcLayer(workspace), RpcSerialization.layerNdjson]),
       Layer.provide([Etag.layer, HttpServer.layerServices]),
     );
     const handler = HttpRouter.toWebHandler(appLayer).handler;
@@ -136,7 +165,7 @@ export class SchemaIdeWorkspaceObject extends DurableObject {
       path: "*",
       protocol: "http",
     }).pipe(
-      Layer.provide([makeSchemaIdeWorkspaceBranchRpcLayer(branches), RpcSerialization.layerNdjson]),
+      Layer.provide([makeHostedWorkspaceBranchRpcLayer(branches), RpcSerialization.layerNdjson]),
       Layer.provide([Etag.layer, HttpServer.layerServices]),
     );
     const handler = HttpRouter.toWebHandler(appLayer).handler;
