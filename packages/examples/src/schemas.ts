@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { ArtifactMatcher, ArtifactProject, ArtifactType } from "@schema-ide/artifacts";
 import { Workspace } from "@schema-ide/core";
 
 export {
@@ -189,6 +190,37 @@ export const WorkflowSchema = Schema.Struct({
   actionIds: Schema.Array(Schema.String),
 });
 export type Workflow = typeof WorkflowSchema.Type;
+
+export const WorkflowActionArtifact = ArtifactType.make("workflow.action").match(
+  ArtifactMatcher.extension("json"),
+);
+export const WorkflowDefinitionArtifact = ArtifactType.make("workflow.definition").match(
+  ArtifactMatcher.extension("json"),
+);
+
+export const WorkflowArtifactProject = ArtifactProject.make("workflow-json")
+  .files("actions/*.json", {
+    id: "Actions",
+    type: WorkflowActionArtifact,
+    schema: ActionSchema,
+    metadata: {
+      attributes: {
+        schemaId: "Actions",
+        description: "Workflow actions",
+      },
+    },
+  })
+  .files("workflows/*.json", {
+    id: "Workflows",
+    type: WorkflowDefinitionArtifact,
+    schema: WorkflowSchema,
+    metadata: {
+      attributes: {
+        schemaId: "Workflows",
+        description: "Workflow definitions",
+      },
+    },
+  });
 
 export const WorkflowWorkspaceSchema = Workspace.Struct({
   actions: Workspace.files("actions/*.json", ActionSchema).pipe(

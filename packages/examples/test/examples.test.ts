@@ -1,13 +1,19 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "@effect/vitest";
+import { ArtifactRef } from "@schema-ide/artifacts";
 import { validateSchemaIdeValue } from "@schema-ide/core";
 import {
   loadSchemaIdeWorkspaceConfig,
   readSourceFilesFromDirectory,
   validateWorkspaceDirectory,
 } from "@schema-ide/cli";
-import { randomSchemaIdeExample, schemaIdeExampleDefinitions, schemaIdeExamples } from "../src";
+import {
+  WorkflowArtifactProject,
+  randomSchemaIdeExample,
+  schemaIdeExampleDefinitions,
+  schemaIdeExamples,
+} from "../src";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -62,6 +68,39 @@ describe("schema-ide-examples", () => {
       expect(sortFiles(reflection.files)).toEqual(sortFiles(example.files));
       expect(reflection.routeMatches.length).toBeGreaterThan(0);
     }
+  });
+
+  it("ships an artifact-native project for the workflow example", async () => {
+    const actionRef = ArtifactRef.workspaceFile("actions/email.json", "workflow-json");
+    const workflowRef = ArtifactRef.workspaceFile("workflows/onboarding.json", "workflow-json");
+    const config = await loadSchemaIdeWorkspaceConfig(
+      resolve(packageDir, "workspaces/workflow-json/schema-ide.config.ts"),
+    );
+
+    expect(WorkflowArtifactProject.routes.map((route) => route.id)).toEqual([
+      "Actions",
+      "Workflows",
+    ]);
+    expect(
+      WorkflowArtifactProject.capabilities(actionRef).map((capability) => ({
+        id: capability.id,
+        routeId: capability.routeId,
+        view: capability.view,
+      })),
+    ).toEqual([
+      {
+        id: "Actions.decodedValue",
+        routeId: "Actions",
+        view: "decodedValue",
+      },
+    ]);
+    expect(
+      WorkflowArtifactProject.capabilities(workflowRef).map((capability) => capability.routeId),
+    ).toEqual(["Workflows"]);
+    expect(config.artifactProject?.name).toBe("workflow-json");
+    expect(
+      config.artifactProject?.capabilities(actionRef).map((capability) => capability.id),
+    ).toEqual(["Actions.decodedValue"]);
   });
 });
 
