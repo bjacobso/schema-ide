@@ -1,11 +1,4 @@
-import {
-  decodeYamlEither,
-  createSchemaIdeArtifactRuntime,
-  type SchemaIdeDocumentFormat,
-  type SchemaIdeArtifactRuntime,
-  SchemaIdeWorkspaceFileArtifact,
-  type SourceFile,
-} from "@schema-ide/core";
+import { decodeYamlEither, SchemaIdeWorkspaceFileArtifact } from "@schema-ide/core";
 import {
   ArtifactProject,
   type AnyArtifactType,
@@ -26,8 +19,6 @@ import { OnboardedFormConfigSchema, OnboardedFormSubscriptionSchema } from "./fo
 import { OnboardedImportManifestSchema } from "./imports";
 import { OnboardedPdfMappingConfigSchema } from "./pdf-mappings";
 import { OnboardedPolicyConfigSchema } from "./policies";
-import { OnboardedRelationWorkspaceSchema, createOnboardedRelationWorkspace } from "./relations";
-import { OnboardedAccountWorkspaceSchema, type AccountWorkspaceValue } from "./workspace";
 
 export const OnboardedArtifactProjectRouteSchema = Schema.Struct({
   id: Schema.String,
@@ -174,57 +165,10 @@ export function createOnboardedArtifactProject(
 
 export const OnboardedArtifactProject = createOnboardedArtifactProject();
 
-export interface CreateOnboardedArtifactRuntimeOptions {
-  readonly files: readonly SourceFile[];
-  readonly activeFile?: string | null | undefined;
-  readonly workspaceId?: string | undefined;
-  readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
-  readonly project?: ArtifactProjectDeclaration<string, any, any> | undefined;
-}
-
-export type OnboardedArtifactRuntime = SchemaIdeArtifactRuntime<AccountWorkspaceValue>;
-
 export function parseOnboardedArtifactProjectConfig(text: string): OnboardedArtifactProjectConfig {
   const result = decodeYamlEither(OnboardedArtifactProjectConfigSchema, text);
   if (Result.isSuccess(result)) return result.success;
   throw new Error(SchemaIssue.makeFormatterDefault()(result.failure));
-}
-
-export function createOnboardedArtifactRuntime({
-  files,
-  activeFile = files[0]?.path ?? null,
-  workspaceId = "onboarded-account-yaml",
-  defaultFormat = "yaml",
-  project = OnboardedArtifactProject,
-}: CreateOnboardedArtifactRuntimeOptions): OnboardedArtifactRuntime {
-  return createSchemaIdeArtifactRuntime({
-    schema: OnboardedAccountWorkspaceSchema,
-    relationSchema: OnboardedRelationWorkspaceSchema,
-    relationValue: createOnboardedRelationWorkspace,
-    files,
-    activeFile,
-    activeFormat: defaultFormat,
-    project,
-    workspaceId,
-  });
-}
-
-export function createOnboardedArtifactRuntimeFromProjectConfig({
-  config,
-  files,
-  activeFile = files[0]?.path ?? null,
-}: {
-  readonly config: OnboardedArtifactProjectConfig;
-  readonly files: readonly SourceFile[];
-  readonly activeFile?: string | null | undefined;
-}): OnboardedArtifactRuntime {
-  return createOnboardedArtifactRuntime({
-    files,
-    activeFile,
-    workspaceId: config.id,
-    defaultFormat: config.defaultFormat,
-    project: createOnboardedArtifactProject(config),
-  });
 }
 
 function schemaArtifact(schema: Schema.Schema<unknown>): ArtifactProjectConfigArtifact {

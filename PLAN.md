@@ -852,6 +852,15 @@ Then update:
 
 Onboarded becomes the proof that artifacts can fully replace workspaces.
 
+Status: partially implemented. `OnboardedArtifactProject` and its serializable
+YAML config are now the route source of truth for the packaged Onboarded sample.
+`OnboardedAccountWorkspaceSchema` is derived from that artifact project through
+the compatibility projection, and the existing cross-file validations remain
+attached while schema-algebra relation views continue to be exposed as artifact
+views. The remaining work is to remove UI/CLI naming that still says
+"workspace" and to move Onboarded cross-file relation/index behavior fully into
+artifact-native schema-algebra views.
+
 ### Phase 6: Update React SchemaIde API
 
 Add artifact-first props:
@@ -952,7 +961,10 @@ Status: started. `@schema-ide/core` now exposes
 temporary `WorkspaceSchema` projections for compatibility. The workflow example
 uses this path, making `WorkflowArtifactProject` the route source of truth while
 existing preview, CLI, and validation paths continue to consume
-`WorkflowWorkspaceSchema`.
+`WorkflowWorkspaceSchema`. Onboarded now uses the same route-source-of-truth
+path: `OnboardedAccountWorkspaceSchema` is projected from
+`OnboardedArtifactProject`, while runtime helpers live outside the pure artifact
+declarations to avoid an artifact/workspace import cycle.
 
 ### Recommended Order Of Work
 

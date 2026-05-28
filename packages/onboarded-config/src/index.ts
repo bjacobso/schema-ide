@@ -6,14 +6,16 @@ export {
   OnboardedArtifactProjectEnvironment,
   OnboardedArtifactProjectRouteSchema,
   createOnboardedArtifactProject,
-  createOnboardedArtifactRuntime,
-  createOnboardedArtifactRuntimeFromProjectConfig,
   parseOnboardedArtifactProjectConfig,
   type OnboardedArtifactProjectConfig,
   type OnboardedArtifactProjectRoute,
+} from "./artifacts";
+export {
+  createOnboardedArtifactRuntime,
+  createOnboardedArtifactRuntimeFromProjectConfig,
   type CreateOnboardedArtifactRuntimeOptions,
   type OnboardedArtifactRuntime,
-} from "./artifacts";
+} from "./runtime";
 export {
   OnboardedAttributeCatalogSchema,
   type OnboardedAttributeCatalog,

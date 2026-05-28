@@ -100,6 +100,14 @@ export interface CreateArtifactProjectFromWorkspaceOptions {
 
 export interface CreateWorkspaceFromArtifactProjectOptions {
   readonly fieldName?: ((route: ArtifactFileRoute) => string) | undefined;
+  readonly mode?: ((route: ArtifactFileRoute) => "file" | "files" | "values") | undefined;
+  readonly annotations?:
+    | ((route: ArtifactFileRoute) => {
+        readonly identifier?: string | undefined;
+        readonly description?: string | undefined;
+      })
+    | undefined;
+  readonly indexBy?: ((route: ArtifactFileRoute) => string | undefined) | undefined;
 }
 
 export const SchemaIdeWorkspaceFileArtifact = ArtifactType.make("schema-ide.workspace-file")
@@ -220,19 +228,26 @@ export function createWorkspaceFromArtifactProject(
     const fieldName =
       options.fieldName?.(route) ?? stringAttribute(attributes, "workspaceField") ?? route.id;
     const optional = attributes["optional"] === true;
+    const annotations = options.annotations?.(route) ?? {};
     const identifier =
+      annotations.identifier ??
       stringAttribute(attributes, "schemaId") ??
       stringAttribute(attributes, "identifier") ??
       route.id;
-    const description = stringAttribute(attributes, "description");
-    const indexBy = stringAttribute(attributes, "indexBy");
-    const values = attributes["values"] === true;
+    const description = annotations.description ?? stringAttribute(attributes, "description");
+    const indexBy = options.indexBy?.(route) ?? stringAttribute(attributes, "indexBy");
+    const mode =
+      options.mode?.(route) ??
+      (attributes["single"] === true ? "file" : attributes["values"] === true ? "values" : "files");
 
-    let field = Workspace.files(route.pattern, route.schema, { optional }) as any;
+    let field =
+      mode === "file"
+        ? (Workspace.file(route.pattern, route.schema, { optional }) as any)
+        : (Workspace.files(route.pattern, route.schema, { optional }) as any);
     field = field.pipe(Workspace.annotations({ identifier, description }));
-    if (indexBy) {
+    if (mode !== "file" && indexBy) {
       field = field.pipe(Workspace.indexBy(indexBy as never));
-    } else if (values) {
+    } else if (mode === "values") {
       field = field.pipe(Workspace.values());
     }
     fields[fieldName] = field;
