@@ -211,8 +211,14 @@ describe("schema-ide-core", () => {
         routeId: "Actions",
         routePattern: "actions/*.json",
       },
+      {
+        id: "Actions.decodedValue",
+        routeId: "Actions",
+        routePattern: "actions/*.json",
+      },
     ]);
     expect(project.route(ArtifactRef.workspaceFile("notes/readme.md"))).toEqual([]);
+    expect(project.routes[0]?.schema).toBe(ActionSchema);
     expect(project.routes[0]?.metadata?.attributes).toMatchObject({
       schemaId: "Actions",
       title: "Action",
@@ -330,6 +336,7 @@ describe("schema-ide-core", () => {
       "parsedValue",
       "jsonSchema",
       "diagnostics",
+      "decodedValue",
     ]);
     expect(runtime.project.name).toBe("schema-ide");
     expect(
@@ -359,12 +366,21 @@ describe("schema-ide-core", () => {
         routeId: "config/*.json",
         routePattern: "config/*.json",
       },
+      {
+        id: "config/*.json.decodedValue",
+        routeId: "config/*.json",
+        routePattern: "config/*.json",
+      },
     ]);
 
     await expect(Effect.runPromise(runtime.view(fileRef, "sourceText"))).resolves.toBe(
       '{"name":"Demo","enabled":true}',
     );
     await expect(Effect.runPromise(runtime.view(fileRef, "parsedValue"))).resolves.toEqual({
+      name: "Demo",
+      enabled: true,
+    });
+    await expect(Effect.runPromise(runtime.view(fileRef, "decodedValue"))).resolves.toEqual({
       name: "Demo",
       enabled: true,
     });

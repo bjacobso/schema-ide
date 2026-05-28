@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Result, Schema, SchemaIssue } from "effect";
 import {
   ArtifactHandler,
   ArtifactMatcher,
@@ -12,8 +12,10 @@ import {
   type ArtifactContent,
   type ArtifactProjectDeclaration,
   type ArtifactRefDefinition,
+  type ArtifactRegistryError,
   type ArtifactRegistryDeclaration,
   type ArtifactStore,
+  type ArtifactViewOptions,
 } from "@schema-ide/artifacts";
 import {
   buildRelationGraph,
@@ -22,6 +24,7 @@ import {
   type RelationGraph,
 } from "@schema-ide/schema-algebra";
 import { formatForPath, parseDocument } from "./document-codec";
+import { sourceSchemaFromReflection } from "./reflection";
 import { createReflection, validateSchemaIdeValue, type SchemaIdeInputSchema } from "./validation";
 import { isWorkspaceSchema, type WorkspaceSchema } from "./workspace-schema";
 import type { AnySchema } from "./types";
@@ -53,7 +56,12 @@ export interface SchemaIdeArtifactRuntime<A = unknown> {
   readonly store: ArtifactStore;
   readonly registry: ArtifactRegistryDeclaration<any>;
   readonly capabilities: ArtifactProjectDeclaration<string, any, any>["capabilities"];
-  readonly view: ArtifactRegistryDeclaration["view"];
+  readonly view: (
+    ref: ArtifactRefDefinition,
+    viewName: string,
+    input?: unknown,
+    options?: ArtifactViewOptions,
+  ) => Effect.Effect<unknown, ArtifactRegistryError | SchemaIdeArtifactError>;
   readonly files: Effect.Effect<readonly SourceFile[], SchemaIdeArtifactError>;
   readonly validation: Effect.Effect<ValidationResult<A>, SchemaIdeArtifactError>;
   readonly reflection: Effect.Effect<SchemaIdeReflection, SchemaIdeArtifactError>;
@@ -140,21 +148,31 @@ export function createArtifactProjectFromWorkspace(
 
   for (const reflected of schema.reflect()) {
     if (!reflected.match) continue;
-    project = project.files(
-      reflected.match,
-      SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
-      {
-        id: reflected.id,
-        metadata: {
-          attributes: {
-            schemaId: reflected.id,
-            ...(reflected.title ? { title: reflected.title } : {}),
-            ...(reflected.description ? { description: reflected.description } : {}),
-            jsonSchema: reflected.jsonSchema,
-          },
-        },
+    const routeMetadata = {
+      attributes: {
+        schemaId: reflected.id,
+        ...(reflected.title ? { title: reflected.title } : {}),
+        ...(reflected.description ? { description: reflected.description } : {}),
+        jsonSchema: reflected.jsonSchema,
       },
-    );
+    };
+    const sourceSchema = sourceSchemaFromReflection(reflected);
+
+    project = sourceSchema
+      ? project.files(reflected.match, {
+          type: SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+          schema: sourceSchema,
+          id: reflected.id,
+          metadata: routeMetadata,
+        })
+      : project.files(
+          reflected.match,
+          SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+          {
+            id: reflected.id,
+            metadata: routeMetadata,
+          },
+        );
   }
 
   return project;
@@ -362,12 +380,21 @@ export function createSchemaIdeArtifactRuntime<A>({
       ArtifactHandler.make(project.view("relationDiagnostics"), () => runtimeRelationDiagnostics),
     );
 
+  const view: SchemaIdeArtifactRuntime["view"] = (ref, viewName, input, options) => {
+    if (viewName === "decodedValue" && ref._tag === "WorkspaceFile") {
+      const route = project.route(ref).find((candidate) => candidate.schema);
+      if (route?.schema) return fileDecodedValue(store, route.schema, ref);
+    }
+
+    return registry.view(ref, viewName, input, options);
+  };
+
   return {
     project,
     store,
     registry,
     capabilities: project.capabilities.bind(project),
-    view: registry.view.bind(registry),
+    view,
     files: runtimeFiles,
     validation: runtimeValidation,
     reflection: runtimeReflection,
@@ -417,6 +444,27 @@ function parseWorkspaceFile(
   return parsed.success
     ? Effect.succeed(parsed.value)
     : Effect.fail({ message: parsed.diagnostic.message });
+}
+
+function fileDecodedValue(
+  store: ArtifactStore,
+  schema: Schema.Schema<unknown>,
+  ref: ArtifactRefDefinition,
+): Effect.Effect<unknown, SchemaIdeArtifactError> {
+  return Effect.gen(function* () {
+    const sourceText = yield* readWorkspaceFileText(store, ref);
+    const parsed = yield* parseWorkspaceFile(sourceText, ref);
+    const decoded = Schema.decodeUnknownResult(schema as never)(parsed) as unknown as Result.Result<
+      unknown,
+      SchemaIssue.Issue
+    >;
+
+    if (Result.isSuccess(decoded)) return decoded.success;
+
+    return yield* Effect.fail({
+      message: SchemaIssue.makeFormatterDefault()(decoded.failure),
+    });
+  });
 }
 
 function fileJsonSchema(

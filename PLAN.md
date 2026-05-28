@@ -410,6 +410,56 @@ instead of:
 `Workspace.Struct` should become legacy compatibility sugar over artifacts, then
 eventually be deprecated.
 
+### Full Conversion Thesis
+
+For a greenfield Schema IDE application, the core input should be a configured
+artifact project, not a workspace schema.
+
+That means the application starts from:
+
+```ts
+const project = ArtifactProject.make("onboarded")
+  .files("accounts/*.yaml", {
+    type: AccountArtifact,
+    schema: AccountSchema,
+  })
+  .files("workflows/*.yaml", {
+    type: WorkflowArtifact,
+    schema: WorkflowSchema,
+  })
+  .algebra(OnboardedAlgebra);
+```
+
+and Schema IDE receives:
+
+```tsx
+<SchemaIde project={project} />
+```
+
+`Workspace.Struct` is then no longer the semantic root of the application. It is
+an adapter for older callers that still want to describe file routes as a
+workspace. The artifact project becomes the durable contract that the UI, CLI,
+agent, protocol, tests, docs, and host integrations all share.
+
+The expected replacement shape is:
+
+```text
+Workspace.Struct
+  -> legacy route declaration API
+
+ArtifactProject
+  -> primary project declaration API
+
+ArtifactStore
+  -> source content, writes, history, and watch events
+
+ArtifactRegistry
+  -> capabilities and executable views
+
+schema-algebra
+  -> semantic graph over decoded artifact values
+```
+
 ### Target Architecture
 
 ```text
@@ -436,6 +486,11 @@ Artifacts own what exists and what views it exposes.
 Schema Algebra owns what decoded values mean together.
 Schema IDE owns how humans and agents inspect and edit the project.
 ```
+
+This keeps the project from replacing `Workspace.Struct` with another
+workspace-shaped abstraction. The primary unit is no longer "a set of files that
+decode into one workspace value"; it is "a graph of artifact refs with declared,
+typed, executable views."
 
 ### Project Configuration As Source Of Truth
 
@@ -476,6 +531,33 @@ const OnboardedProject = ArtifactProject.fromYaml(onboardedConfig, {
 The YAML file is the stable project declaration that a host, CLI, editor, or
 agent can inspect. The TypeScript module provides the concrete schemas,
 handlers, and algebra implementation needed to execute the declaration.
+
+This suggests two related package-level APIs:
+
+```ts
+const config = OnboardedArtifactProject.toYaml(project);
+const project = OnboardedArtifactProject.fromYaml(config, environment);
+```
+
+The YAML should be the single source of truth for serializable configuration:
+
+- project id and display metadata
+- file route patterns
+- artifact names and formats
+- declared project-level views
+- schema-algebra relation declarations that can be serialized
+- policy metadata that hosts can inspect before execution
+
+The TypeScript side should provide non-serializable runtime values:
+
+- Effect Schema values
+- handler implementations
+- service layers
+- host-specific stores
+- rich schema-algebra functions that cannot be represented as YAML
+
+The split is intentional. YAML should not try to encode arbitrary TypeScript
+programs, but TypeScript should not be the only place to discover project shape.
 
 This avoids replacing `Workspace.Struct` with another non-serializable-only
 shape. It also gives Onboarded a single configuration artifact that can drive:
@@ -521,6 +603,13 @@ In the artifact-native model:
 The public migration path should preserve old behavior while making the new
 shape better for greenfield projects.
 
+The deprecation should be implementation-led. Do not mark `Workspace.Struct`
+legacy while first-party code still depends on it as the only way to describe a
+project. The first milestone is to make every current workspace feature
+representable as artifacts. The second milestone is to make Schema IDE execute
+through artifacts internally. The third milestone is to leave `Workspace.Struct`
+as pure compatibility sugar.
+
 ### Schema Algebra Boundary
 
 Schema algebra should not be folded into artifacts. It should sit above decoded
@@ -562,6 +651,22 @@ schema-algebra -> derive relations from decoded values
 schema-ide -> render and edit both
 ```
 
+In practice, this means schema-algebra should attach meaning to artifact views,
+not to the old workspace container:
+
+```text
+artifact decoded values
+  -> entity index
+  -> relation graph
+  -> reference diagnostics
+  -> definition and usage locations
+  -> patch suggestions
+```
+
+That lets the same algebra run over local files, remote blobs, generated
+outputs, or future artifact stores as long as the declared views produce the
+required decoded values.
+
 ### Cutover Criteria
 
 `Workspace.Struct` can be deprecated only after these are true:
@@ -580,6 +685,28 @@ schema-ide -> render and edit both
 - first-party packages no longer need to import `Workspace.Struct` directly
 
 Only then should the docs mark `Workspace.Struct` as legacy.
+
+### Migration Gates
+
+Use these gates to keep the conversion honest:
+
+1. **Declaration gate**: every current `Workspace.files` route can be expressed
+   as `ArtifactProject.files`.
+2. **Runtime gate**: artifact views can execute the same source text, parsed
+   value, decoded value, diagnostics, JSON Schema, and reflection behavior as the
+   current workspace runtime.
+3. **Store gate**: reads, writes, creates, deletes, history, and watch events are
+   modeled through `ArtifactStore`.
+4. **UI gate**: React components can run from `<SchemaIde project={project} />`
+   without constructing a workspace first.
+5. **Agent gate**: agent tools operate on artifact refs and capabilities, with
+   old workspace tools implemented as aliases.
+6. **Protocol gate**: workspace RPC is either replaced by artifact RPC or backed
+   by an artifact runtime internally.
+7. **Example gate**: at least one small example and the Onboarded example are
+   artifact-native.
+8. **Docs gate**: public docs teach artifacts first and label workspaces as
+   compatibility.
 
 ### Phase 1: Add Missing Artifact Primitives
 
