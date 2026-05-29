@@ -8,11 +8,12 @@ This package is the extraction target for `@schema-ide/core`.
 
 ```ts
 import { Effect, Schema } from "effect";
-import { ArtifactProject, ArtifactRef } from "@schema-ide/artifacts";
+import { ArtifactRef } from "@schema-ide/artifacts";
 import {
+  ArtifactProject,
   SchemaIdeWorkspaceFileArtifact,
+  Workspace,
   createSchemaIdeArtifactRuntime,
-  createWorkspaceFromArtifactProject,
 } from "@schema-ide/core";
 
 const Prompt = Schema.Struct({
@@ -25,7 +26,7 @@ const PromptProject = ArtifactProject.make("prompts").files("prompts/*.yaml", {
   type: SchemaIdeWorkspaceFileArtifact,
   schema: Prompt,
 });
-const PromptWorkspace = createWorkspaceFromArtifactProject(PromptProject);
+const PromptWorkspace = Workspace.fromArtifactProject(PromptProject);
 
 const artifacts = createSchemaIdeArtifactRuntime({
   project: PromptProject,
@@ -61,6 +62,14 @@ const diagnostics = await Effect.runPromise(artifacts.view(ArtifactRef.workspace
 const sourceText = await Effect.runPromise(
   artifacts.view(ArtifactRef.workspaceFile("prompts/support.yaml"), "sourceText"),
 );
+```
+
+Compatibility projects can be projected in either direction from the core
+facade:
+
+```ts
+const project = ArtifactProject.fromWorkspace(PromptWorkspace);
+const workspace = Workspace.fromArtifactProject(project);
 ```
 
 Versioned workspaces record committed file changes as revisions. Manual editor

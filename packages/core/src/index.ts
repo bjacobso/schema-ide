@@ -1,3 +1,22 @@
+import { ArtifactProject as ArtifactProjectBase } from "@schema-ide/artifacts";
+import {
+  createArtifactProjectFromWorkspace,
+  createWorkspaceFromArtifactProject,
+} from "./artifacts";
+import { Workspace as WorkspaceBase } from "./workspace-schema";
+
+export const ArtifactProject: typeof ArtifactProjectBase & {
+  readonly fromWorkspace: typeof createArtifactProjectFromWorkspace;
+} = Object.assign({}, ArtifactProjectBase, {
+  fromWorkspace: createArtifactProjectFromWorkspace,
+});
+
+export const Workspace: typeof WorkspaceBase & {
+  readonly fromArtifactProject: typeof createWorkspaceFromArtifactProject;
+} = Object.assign({}, WorkspaceBase, {
+  fromArtifactProject: createWorkspaceFromArtifactProject,
+});
+
 export {
   SchemaIdeArtifactProject,
   SchemaIdeWorkspaceFileArtifact,
@@ -24,7 +43,6 @@ export {
 } from "./document-codec";
 export { summarizeDiagnostics, parseErrorToDiagnostics } from "./diagnostics";
 export {
-  Workspace,
   isWorkspaceSchema,
   type WorkspaceDecodeOptions,
   type WorkspaceRouteId,

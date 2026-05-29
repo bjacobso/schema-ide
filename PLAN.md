@@ -1090,6 +1090,334 @@ artifact-native configs export `{ project }` first while older
 8. move schema-algebra relation/index behavior into artifact views
 9. deprecate `Workspace.Struct`
 
+## Detailed Workspace Deprecation Plan
+
+The migration should treat workspaces as a compatibility projection, not as the
+semantic center of the system. The end state is:
+
+```text
+ArtifactProject config
+  -> ArtifactStore state
+  -> ArtifactRegistry capabilities/views
+  -> schema-algebra semantic graph
+  -> Schema IDE UI, protocol, CLI, and agent tools
+```
+
+`Workspace.Struct` remains available during the transition, but first-party code
+should progressively stop authoring new behavior against it.
+
+### Guiding Decisions
+
+- `ArtifactProject` is the primary declaration API for greenfield Schema IDE
+  applications.
+- Serializable project configuration should live in artifact project config,
+  with YAML as the inspectable source of truth where useful.
+- TypeScript should attach executable values that YAML cannot represent:
+  Effect Schema values, handlers, layers, stores, and advanced algebra helpers.
+- `Workspace.Struct` should be generated from artifacts for compatibility, not
+  hand-authored in new first-party examples.
+- `schema-algebra` should remain separate from artifacts. Artifacts provide
+  decoded values and views; schema-algebra derives cross-artifact meaning.
+- Protocol and React types may keep workspace-shaped envelopes temporarily, but
+  their implementation should read from artifact refs and views.
+
+### Phase A: Stabilize Artifact Project As The Declaration Root
+
+Goal: every route-level concept currently expressed by `Workspace.Struct` can be
+expressed directly by `ArtifactProject`.
+
+Deliverables:
+
+- `ArtifactProject.make(id)` with stable project identity and metadata.
+- `ArtifactProject.files(pattern, artifact)` for routed source artifacts.
+- Route IDs stable enough for previews, diagnostics, generated docs, and agent
+  tool output.
+- Route config serialization through `ArtifactProject.toConfig`.
+- Route config hydration through `ArtifactProject.fromConfig`.
+- YAML helpers for project config round trips.
+- Project-level refs such as `ArtifactRef.workspace(projectId?)`.
+- File-level refs such as `ArtifactRef.workspaceFile(path, projectId?)`.
+
+Acceptance criteria:
+
+- Onboarded and at least one small example can declare all file routes without
+  authoring `Workspace.Struct` directly.
+- The serialized config contains no derived runtime metadata.
+- The executable project can be recreated from config plus a TypeScript
+  environment containing schemas, handlers, and algebra.
+
+### Phase B: Make Workspace A Compatibility Projection
+
+Goal: old callers keep working while new callers can stay artifact-native.
+
+Compatibility APIs:
+
+```ts
+const project = ArtifactProject.fromWorkspace(workspace);
+const workspace = Workspace.fromArtifactProject(project);
+```
+
+Implementation rules:
+
+- Do not make `@schema-ide/artifacts` depend on `@schema-ide/core`.
+- If exact helper names require core-owned facades, expose them from
+  `@schema-ide/core` while keeping the standalone artifact package dependency
+  direction clean.
+- Projection from artifact project to workspace should preserve route patterns,
+  formats, schemas, defaults, and validation behavior.
+- Projection from workspace to artifact project should be treated as migration
+  support, not the preferred authoring path.
+
+Acceptance criteria:
+
+- All first-party examples can export an artifact project as their source of
+  truth.
+- Existing `Workspace.Struct` consumers still compile.
+- Public docs show artifact-first setup and label workspace setup as
+  compatibility.
+
+Status: started. `@schema-ide/core` exposes artifact/workspace compatibility
+facades that match the migration shape without making `@schema-ide/artifacts`
+depend on core:
+
+```ts
+const project = ArtifactProject.fromWorkspace(workspace);
+const workspace = Workspace.fromArtifactProject(project);
+```
+
+The lower-level `createArtifactProjectFromWorkspace` and
+`createWorkspaceFromArtifactProject` helpers remain exported for existing
+callers, while the facade names give greenfield and migration docs a single
+artifact-first API surface to teach.
+
+### Phase C: Move Core Runtime Behavior To Artifact Views
+
+Goal: validation, reflection, parsed values, and schemas are materialized as
+artifact views.
+
+Workspace-level views:
+
+- `routeMatches`
+- `decodedWorkspace`
+- `diagnostics`
+- `validationSummary`
+- `reflection`
+- `jsonSchema`
+- `relationGraph`
+- `relationDiagnostics`
+- `patchSuggestions`
+
+Workspace-file views:
+
+- `sourceText`
+- `parsedValue`
+- `decodedValue`
+- `diagnostics`
+- `jsonSchema`
+- `references`
+- `definitionLocations`
+
+Implementation rules:
+
+- Existing core functions can remain, but should delegate to artifact views when
+  practical.
+- View outputs should keep using Effect Schema validation at the boundary.
+- View names must be stable enough for agent tools and protocol clients.
+- Handler resolution should remain explicit by view identity until ranking or
+  planning is needed.
+
+Acceptance criteria:
+
+- CLI validation can run through artifact runtime views.
+- React can hydrate reflection, diagnostics, schemas, and source text through
+  artifact runtime reads.
+- Tests assert parity between legacy workspace outputs and artifact view outputs
+  for representative examples.
+
+### Phase D: Convert Schema IDE React To Project Input
+
+Goal: the main React API accepts an artifact project without requiring a
+workspace schema.
+
+Target API:
+
+```tsx
+<SchemaIde project={project} />
+```
+
+Compatibility API:
+
+```tsx
+<SchemaIde schema={schema} initialFiles={files} />
+```
+
+Implementation sequence:
+
+1. Derive compatibility workspace schemas internally only when older props are
+   used.
+2. Hydrate the file tree from `listArtifactRefs`.
+3. Read editor contents from `sourceText`.
+4. Read diagnostics from the workspace `diagnostics` view.
+5. Read preview schemas from file-level `jsonSchema` views.
+6. Read reflection and graph panels from project-level views.
+7. Move write paths to artifact source changes.
+8. Keep workspace snapshots only as a protocol compatibility envelope.
+
+Acceptance criteria:
+
+- A greenfield app can render Schema IDE from `project` alone.
+- The same app can serialize and reload its project config.
+- React no longer calls workspace validation/reflection helpers directly outside
+  compatibility adapters.
+
+### Phase E: Convert Agent, CLI, And Protocol Surfaces
+
+Goal: external automation talks in artifact terms.
+
+Agent tools:
+
+- `list_artifacts`
+- `get_artifact_capabilities`
+- `read_artifact_view`
+- `write_artifact_source`
+- `validate_artifact_project`
+
+CLI behavior:
+
+- Project configs export `defineSchemaIdeProject({ project })`.
+- Workspace config loading remains supported as legacy input.
+- Validation commands report artifact project language in user-facing copy.
+
+Protocol behavior:
+
+- Expose artifact refs, capabilities, view reads, source writes, and watch
+  streams.
+- Keep existing workspace RPC as aliases until clients migrate.
+- Treat `WorkspaceSnapshot` as a compatibility projection from artifact state.
+
+Acceptance criteria:
+
+- First-party prompts and evals use artifact tools.
+- CLI examples no longer need manually-authored workspace schemas.
+- Protocol clients can build UI state from artifact endpoints alone.
+
+### Phase F: Make Onboarded The Reference Conversion
+
+Goal: Onboarded demonstrates the full greenfield model.
+
+Onboarded should have:
+
+- `artifact-project.yaml` as serializable project configuration.
+- `OnboardedArtifactProject` as the executable project module.
+- Schemas, handlers, and algebra attached in TypeScript.
+- Previews registered from artifact route IDs.
+- Relation graph and reference diagnostics exposed as artifact views.
+- Compatibility workspace schema derived from the artifact project only where
+  legacy consumers still need it.
+
+Acceptance criteria:
+
+- Onboarded route declarations are authored once.
+- YAML round trips cleanly.
+- The UI, CLI, and tests can run from `OnboardedArtifactProject`.
+- Any remaining workspace-named exports are compatibility aliases or clearly
+  documented migration shims.
+
+### Phase G: Deprecate Workspace.Struct
+
+Goal: make the old API visibly legacy after first-party code no longer depends
+on it as the semantic root.
+
+Deprecation steps:
+
+1. Add JSDoc `@deprecated` notices to `Workspace.Struct` and related authoring
+   helpers.
+2. Move docs to artifact-first examples.
+3. Add a migration guide mapping workspace APIs to artifact APIs.
+4. Keep compatibility projections for one release cycle.
+5. Move workspace-only helpers into a legacy module.
+6. Freeze the workspace DSL surface.
+7. Remove direct first-party imports of `Workspace.Struct` except in tests that
+   assert compatibility.
+
+Do not deprecate earlier than this. A deprecation warning is only honest once
+new code can do everything important without starting from `Workspace.Struct`.
+
+### Package-by-Package Work
+
+`@schema-ide/artifacts`:
+
+- Own artifact declarations, refs, matchers, views, handlers, registry, project
+  config, and policy metadata.
+- Stay independent from core, React, CLI, and schema-algebra.
+
+`@schema-ide/core`:
+
+- Own compatibility between artifact projects and workspace schemas.
+- Provide Schema IDE-specific artifact views.
+- Keep old validation and reflection functions as adapters while callers
+  migrate.
+
+`@schema-ide/schema-algebra`:
+
+- Consume decoded artifact values.
+- Produce relation graph, references, diagnostics, definition locations, and
+  semantic patch data.
+- Avoid taking a hard dependency on workspace containers.
+
+`@schema-ide/react`:
+
+- Prefer `project` input.
+- Use artifact refs and views for file tree, editor, diagnostics, previews, and
+  graph state.
+- Keep workspace props as compatibility sugar.
+
+`@schema-ide/cli`:
+
+- Prefer `defineSchemaIdeProject`.
+- Load artifact project configs.
+- Derive workspace schemas only for legacy flows.
+
+`@schema-ide/agent`:
+
+- Prefer artifact-native tools.
+- Keep old tools as aliases over artifact operations.
+
+`@schema-ide/protocol`:
+
+- Add artifact endpoints and watch semantics.
+- Keep workspace endpoints as compatibility wrappers.
+
+### Migration Tracking Checklist
+
+- [ ] Artifact project routes cover every current workspace route feature.
+- [ ] Artifact project config round trips through YAML.
+- [ ] Core workspace projection helpers are public and tested.
+- [ ] Core validation/reflection paths can run from artifact views.
+- [ ] Schema-algebra views are exposed through artifact runtime.
+- [ ] React accepts `project` alone for a real example.
+- [ ] React reads source, diagnostics, schemas, and reflection from artifact
+      views.
+- [ ] CLI configs prefer artifact projects.
+- [ ] Agent tools use artifact refs/views.
+- [ ] Protocol exposes artifact capabilities, views, writes, and watch events.
+- [ ] Onboarded is artifact-native end to end.
+- [ ] Docs teach artifact projects first.
+- [ ] `Workspace.Struct` is marked deprecated only after the above are true.
+
+### Risks And Guardrails
+
+- Avoid replacing `Workspace.Struct` with an equally opaque project object. The
+  serializable config must remain inspectable.
+- Avoid pushing schema-algebra into artifact core. Cross-file semantics belong
+  above decoded artifact values.
+- Avoid making artifacts depend on Schema IDE packages. Schema IDE can add
+  adapters; the artifact package should remain reusable.
+- Avoid breaking old users during the migration. Workspace APIs should degrade
+  into compatibility projections before they disappear.
+- Avoid declaring victory while protocol or React still constructs workspaces as
+  the true source of runtime semantics.
+
 ## What Should Stay Out Of The Core
 
 The core package should stay small.

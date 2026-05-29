@@ -1,8 +1,9 @@
 import { describe, expect, expectTypeOf, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { ArtifactProject, ArtifactRef } from "@schema-ide/artifacts";
+import { ArtifactRef } from "@schema-ide/artifacts";
 import { Relation } from "@schema-ide/schema-algebra";
 import {
+  ArtifactProject,
   SchemaIdeWorkspaceFileArtifact,
   Workspace,
   applyWorkspaceChange,
@@ -318,6 +319,31 @@ describe("schema-ide-core", () => {
     expect((decoded.value as any)?.workflows).toEqual([{ id: "onboarding", actionIds: ["email"] }]);
     expect(WorkspaceSchema.reflect().map((schema) => schema.id)).toEqual(["Actions", "Workflows"]);
     expect(WorkspaceSchema.reflect()[0]?.description).toBe("Workflow action definitions");
+  });
+
+  it("exposes artifact/workspace compatibility helpers from the core facade", () => {
+    const ActionSchema = Schema.Struct({
+      id: Schema.String,
+      label: Schema.String,
+    });
+    const WorkspaceSchema = Workspace.Struct({
+      actions: Workspace.files("actions/*.json", ActionSchema).pipe(
+        Workspace.annotations({ identifier: "Actions" }),
+      ),
+    });
+
+    const project = ArtifactProject.fromWorkspace(WorkspaceSchema, { name: "workflow" });
+    const ProjectedWorkspace = Workspace.fromArtifactProject(project);
+    const decoded = ProjectedWorkspace.decode({
+      files: [{ path: "actions/email.json", content: '{"id":"email","label":"Email"}' }],
+    });
+
+    expect(project.name).toBe("workflow");
+    expect(project.routes.map((route) => route.id)).toEqual(["Actions"]);
+    expect(decoded.summary.valid).toBe(true);
+    expect((decoded.value as any)?.Actions).toEqual([
+      { path: "actions/email.json", value: { id: "email", label: "Email" } },
+    ]);
   });
 
   it("tracks workspace revisions and supports undo and redo", () => {
