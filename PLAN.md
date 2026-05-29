@@ -836,6 +836,8 @@ views for `entityIndex`, `definitionLocations`, `references`, and
 `relationDiagnostics` views. These views are available on project refs and
 schema-backed file refs, giving agents and UIs a richer artifact-native
 inspection surface without reaching through `Workspace.Struct` directly.
+`@schema-ide/schema-algebra` owns the graph-derived helper functions, keeping
+core responsible for view exposure rather than relation semantics.
 
 ### Phase 5: Convert Onboarded First
 

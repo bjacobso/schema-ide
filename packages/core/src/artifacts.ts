@@ -20,9 +20,14 @@ import {
 } from "@schema-ide/artifacts";
 import {
   buildRelationGraph,
+  buildEntityIndex,
+  definitionLocations as relationDefinitionLocations,
+  referenceDiagnostics as relationReferenceDiagnostics,
+  references as relationReferences,
   validateRelations,
   type RelationDefinition,
   type RelationDiagnostic,
+  type RelationEntityIndex,
   type RelationGraph,
   type RelationReference,
 } from "@schema-ide/schema-algebra";
@@ -56,15 +61,6 @@ const SchemaIdeRelationGraphSchema = Schema.Struct({
 });
 
 const SchemaIdeRelationArraySchema = Schema.Array(Schema.Unknown);
-
-export interface RelationEntityIndexEntry {
-  readonly type: string;
-  readonly id: string;
-  readonly scope?: string | undefined;
-  readonly definitions: readonly RelationDefinition[];
-}
-
-export type RelationEntityIndex = readonly RelationEntityIndexEntry[];
 
 export interface SchemaIdeArtifactError {
   readonly message: string;
@@ -518,13 +514,13 @@ export function createSchemaIdeArtifactRuntime<A>({
       }),
     ),
   );
-  const runtimeEntityIndex = runtimeRelationGraph.pipe(Effect.map(entityIndexFromGraph));
+  const runtimeEntityIndex = runtimeRelationGraph.pipe(Effect.map(buildEntityIndex));
   const runtimeDefinitionLocations = runtimeRelationGraph.pipe(
-    Effect.map((graph) => graph.definitions),
+    Effect.map(relationDefinitionLocations),
   );
-  const runtimeReferences = runtimeRelationGraph.pipe(Effect.map((graph) => graph.references));
+  const runtimeReferences = runtimeRelationGraph.pipe(Effect.map(relationReferences));
   const runtimeReferenceDiagnostics = runtimeRelationDiagnostics.pipe(
-    Effect.map(referenceDiagnosticsFromDiagnostics),
+    Effect.map(relationReferenceDiagnostics),
   );
   const preview = (
     previewFiles: readonly SourceFile[],
@@ -572,17 +568,17 @@ export function createSchemaIdeArtifactRuntime<A>({
     )
     .addHandler(
       ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("entityIndex"), ({ ref }) =>
-        fileRelationGraph(store, project, ref).pipe(Effect.map(entityIndexFromGraph)),
+        fileRelationGraph(store, project, ref).pipe(Effect.map(buildEntityIndex)),
       ),
     )
     .addHandler(
       ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("definitionLocations"), ({ ref }) =>
-        fileRelationGraph(store, project, ref).pipe(Effect.map((graph) => graph.definitions)),
+        fileRelationGraph(store, project, ref).pipe(Effect.map(relationDefinitionLocations)),
       ),
     )
     .addHandler(
       ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("references"), ({ ref }) =>
-        fileRelationGraph(store, project, ref).pipe(Effect.map((graph) => graph.references)),
+        fileRelationGraph(store, project, ref).pipe(Effect.map(relationReferences)),
       ),
     )
     .addHandler(
@@ -592,9 +588,7 @@ export function createSchemaIdeArtifactRuntime<A>({
     )
     .addHandler(
       ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("referenceDiagnostics"), ({ ref }) =>
-        fileRelationDiagnostics(store, project, ref).pipe(
-          Effect.map(referenceDiagnosticsFromDiagnostics),
-        ),
+        fileRelationDiagnostics(store, project, ref).pipe(Effect.map(relationReferenceDiagnostics)),
       ),
     )
     .addHandler(
@@ -800,44 +794,6 @@ function fileSchemaRoute(
 ) {
   if (ref._tag !== "WorkspaceFile") return null;
   return project.route(ref).find((candidate) => candidate.schema) ?? null;
-}
-
-function entityIndexFromGraph(graph: RelationGraph): RelationEntityIndex {
-  const entries = new Map<string, RelationEntityIndexEntry>();
-
-  for (const definition of graph.definitions) {
-    const key = relationKey(definition.type, definition.id, definition.scope);
-    const existing = entries.get(key);
-    if (existing) {
-      entries.set(key, {
-        ...existing,
-        definitions: [...existing.definitions, definition],
-      });
-      continue;
-    }
-
-    entries.set(key, {
-      type: definition.type,
-      id: definition.id,
-      scope: definition.scope,
-      definitions: [definition],
-    });
-  }
-
-  return [...entries.values()];
-}
-
-function referenceDiagnosticsFromDiagnostics(
-  diagnostics: readonly RelationDiagnostic[],
-): readonly RelationDiagnostic[] {
-  return diagnostics.filter((diagnostic) => {
-    if (diagnostic.code === "unresolved-ref") return true;
-    return diagnostic.code === "invalid-relation-value" && "target" in diagnostic.relation;
-  });
-}
-
-function relationKey(type: string, id: string, scope: string | undefined): string {
-  return `${type}\u0000${scope ?? ""}\u0000${id}`;
 }
 
 function contentToText(content: ArtifactContent): string {
