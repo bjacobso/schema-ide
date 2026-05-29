@@ -67,38 +67,120 @@ export const EvaluationSchema = Schema.Struct({
 });
 export type Evaluation = typeof EvaluationSchema.Type;
 
-export const PromptEvalWorkspaceSchema = Workspace.Struct({
-  prompts: Workspace.files("prompts/*.json", PromptSchema, { optional: true }).pipe(
-    Workspace.annotations({ identifier: "PromptFiles", description: "JSON prompt definitions" }),
-    Workspace.indexBy("id"),
-  ),
-  yamlPrompts: Workspace.files("prompts/*.yaml", PromptSchema, { optional: true }).pipe(
-    Workspace.annotations({
-      identifier: "PromptYamlFiles",
-      description: "YAML prompt definitions",
-    }),
-    Workspace.indexBy("id"),
-  ),
-  datasets: Workspace.files("datasets/*.json", DatasetSchema, { optional: true }).pipe(
-    Workspace.annotations({ identifier: "DatasetFiles", description: "JSON eval datasets" }),
-    Workspace.indexBy("id"),
-  ),
-  yamlDatasets: Workspace.files("datasets/*.yaml", DatasetSchema, { optional: true }).pipe(
-    Workspace.annotations({ identifier: "DatasetYamlFiles", description: "YAML eval datasets" }),
-    Workspace.indexBy("id"),
-  ),
-  evaluations: Workspace.files("evals/*.json", EvaluationSchema, { optional: true }).pipe(
-    Workspace.annotations({ identifier: "EvaluationFiles", description: "JSON eval definitions" }),
-    Workspace.indexBy("id"),
-  ),
-  yamlEvaluations: Workspace.files("evals/*.yaml", EvaluationSchema, { optional: true }).pipe(
-    Workspace.annotations({
-      identifier: "EvaluationYamlFiles",
-      description: "YAML eval definitions",
-    }),
-    Workspace.indexBy("id"),
-  ),
-}).pipe(
+export const PromptEvalPromptJsonArtifact = ArtifactType.make("prompt-eval.prompt-json").match(
+  ArtifactMatcher.extension("json"),
+);
+export const PromptEvalPromptYamlArtifact = ArtifactType.make("prompt-eval.prompt-yaml").match(
+  ArtifactMatcher.extension("yaml"),
+);
+export const PromptEvalDatasetJsonArtifact = ArtifactType.make("prompt-eval.dataset-json").match(
+  ArtifactMatcher.extension("json"),
+);
+export const PromptEvalDatasetYamlArtifact = ArtifactType.make("prompt-eval.dataset-yaml").match(
+  ArtifactMatcher.extension("yaml"),
+);
+export const PromptEvalEvaluationJsonArtifact = ArtifactType.make(
+  "prompt-eval.evaluation-json",
+).match(ArtifactMatcher.extension("json"));
+export const PromptEvalEvaluationYamlArtifact = ArtifactType.make(
+  "prompt-eval.evaluation-yaml",
+).match(ArtifactMatcher.extension("yaml"));
+
+export const PromptEvalArtifactProject = ArtifactProject.make("prompt-evals")
+  .files("prompts/*.json", {
+    id: "PromptFiles",
+    type: PromptEvalPromptJsonArtifact,
+    schema: PromptSchema,
+    metadata: {
+      attributes: {
+        schemaId: "PromptFiles",
+        workspaceField: "prompts",
+        description: "JSON prompt definitions",
+        indexBy: "id",
+        format: "json",
+        optional: true,
+      },
+    },
+  })
+  .files("prompts/*.yaml", {
+    id: "PromptYamlFiles",
+    type: PromptEvalPromptYamlArtifact,
+    schema: PromptSchema,
+    metadata: {
+      attributes: {
+        schemaId: "PromptYamlFiles",
+        workspaceField: "yamlPrompts",
+        description: "YAML prompt definitions",
+        indexBy: "id",
+        format: "yaml",
+        optional: true,
+      },
+    },
+  })
+  .files("datasets/*.json", {
+    id: "DatasetFiles",
+    type: PromptEvalDatasetJsonArtifact,
+    schema: DatasetSchema,
+    metadata: {
+      attributes: {
+        schemaId: "DatasetFiles",
+        workspaceField: "datasets",
+        description: "JSON eval datasets",
+        indexBy: "id",
+        format: "json",
+        optional: true,
+      },
+    },
+  })
+  .files("datasets/*.yaml", {
+    id: "DatasetYamlFiles",
+    type: PromptEvalDatasetYamlArtifact,
+    schema: DatasetSchema,
+    metadata: {
+      attributes: {
+        schemaId: "DatasetYamlFiles",
+        workspaceField: "yamlDatasets",
+        description: "YAML eval datasets",
+        indexBy: "id",
+        format: "yaml",
+        optional: true,
+      },
+    },
+  })
+  .files("evals/*.json", {
+    id: "EvaluationFiles",
+    type: PromptEvalEvaluationJsonArtifact,
+    schema: EvaluationSchema,
+    metadata: {
+      attributes: {
+        schemaId: "EvaluationFiles",
+        workspaceField: "evaluations",
+        description: "JSON eval definitions",
+        indexBy: "id",
+        format: "json",
+        optional: true,
+      },
+    },
+  })
+  .files("evals/*.yaml", {
+    id: "EvaluationYamlFiles",
+    type: PromptEvalEvaluationYamlArtifact,
+    schema: EvaluationSchema,
+    metadata: {
+      attributes: {
+        schemaId: "EvaluationYamlFiles",
+        workspaceField: "yamlEvaluations",
+        description: "YAML eval definitions",
+        indexBy: "id",
+        format: "yaml",
+        optional: true,
+      },
+    },
+  });
+
+export const PromptEvalWorkspaceSchema = createWorkspaceFromArtifactProject(
+  PromptEvalArtifactProject,
+).pipe(
   Workspace.transform((workspace: any) => ({
     prompts: mergeMaps(workspace.prompts, workspace.yamlPrompts),
     datasets: mergeMaps(workspace.datasets, workspace.yamlDatasets),

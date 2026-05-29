@@ -9,6 +9,7 @@ import {
   validateWorkspaceDirectory,
 } from "@schema-ide/cli";
 import {
+  PromptEvalArtifactProject,
   SurveyArtifactProject,
   WorkflowArtifactProject,
   randomSchemaIdeExample,
@@ -102,6 +103,50 @@ describe("schema-ide-examples", () => {
     expect(
       config.artifactProject?.capabilities(actionRef).map((capability) => capability.id),
     ).toEqual(["Actions.decodedValue"]);
+  });
+
+  it("ships an artifact-native project for the prompt eval examples", async () => {
+    const promptJsonRef = ArtifactRef.workspaceFile("prompts/support-router.json", "prompt-evals");
+    const promptYamlRef = ArtifactRef.workspaceFile("prompts/release-notes.yaml", "prompt-evals");
+    const jsonConfig = await loadSchemaIdeWorkspaceConfig(
+      resolve(packageDir, "workspaces/prompt-evals-json/schema-ide.config.ts"),
+    );
+    const yamlConfig = await loadSchemaIdeWorkspaceConfig(
+      resolve(packageDir, "workspaces/prompt-evals-yaml/schema-ide.config.ts"),
+    );
+
+    expect(PromptEvalArtifactProject.routes.map((route) => route.id)).toEqual([
+      "PromptFiles",
+      "PromptYamlFiles",
+      "DatasetFiles",
+      "DatasetYamlFiles",
+      "EvaluationFiles",
+      "EvaluationYamlFiles",
+    ]);
+    expect(
+      PromptEvalArtifactProject.capabilities(promptJsonRef).map((capability) => ({
+        id: capability.id,
+        routeId: capability.routeId,
+        view: capability.view,
+      })),
+    ).toEqual([
+      {
+        id: "PromptFiles.decodedValue",
+        routeId: "PromptFiles",
+        view: "decodedValue",
+      },
+    ]);
+    expect(
+      PromptEvalArtifactProject.capabilities(promptYamlRef).map((capability) => capability.id),
+    ).toEqual(["PromptYamlFiles.decodedValue"]);
+    expect(jsonConfig.artifactProject?.name).toBe("prompt-evals");
+    expect(yamlConfig.artifactProject?.name).toBe("prompt-evals");
+    expect(
+      jsonConfig.artifactProject?.capabilities(promptJsonRef).map((capability) => capability.id),
+    ).toEqual(["PromptFiles.decodedValue"]);
+    expect(
+      yamlConfig.artifactProject?.capabilities(promptYamlRef).map((capability) => capability.id),
+    ).toEqual(["PromptYamlFiles.decodedValue"]);
   });
 
   it("ships an artifact-native project for the survey example", async () => {

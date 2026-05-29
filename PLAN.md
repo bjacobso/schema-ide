@@ -985,10 +985,11 @@ Status: started. `@schema-ide/core` now exposes
 temporary `WorkspaceSchema` projections for compatibility. The workflow example
 uses this path, making `WorkflowArtifactProject` the route source of truth while
 existing preview, CLI, and validation paths continue to consume
-`WorkflowWorkspaceSchema`. The survey example now follows the same route-source
-pattern through `SurveyArtifactProject`, with its CLI config exporting the
-artifact project and its workspace schema derived as a compatibility projection.
-Onboarded now uses the same route-source-of-truth path:
+`WorkflowWorkspaceSchema`. The survey and prompt-eval examples now follow the
+same route-source pattern through `SurveyArtifactProject` and
+`PromptEvalArtifactProject`, with their CLI configs exporting artifact projects
+and their workspace schemas derived as compatibility projections. Onboarded now
+uses the same route-source-of-truth path:
 `OnboardedAccountWorkspaceSchema` is projected from
 `OnboardedArtifactProject`, while runtime helpers live outside the pure artifact
 declarations to avoid an artifact/workspace import cycle.
