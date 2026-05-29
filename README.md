@@ -115,8 +115,8 @@ Pre-1.0. Public packaging (`@schema-ide/core`, `@schema-ide/react`, `@schema-ide
 
 New Schema IDE projects should start from an `ArtifactProject`. The project is
 the route and capability contract used by React, the CLI, protocol clients, and
-agent tools. `Workspace.Struct` still exists as compatibility sugar for older
-callers and tests, but the first-party examples now author artifact projects and
+agent tools. `Workspace.Struct` is deprecated compatibility sugar for older
+callers and tests, and first-party examples now author artifact projects and
 derive any temporary workspace projection from those routes.
 
 ### Example

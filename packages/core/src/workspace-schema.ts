@@ -468,12 +468,20 @@ function annotateField<A, Routes extends WorkspaceRouteMap>(
 }
 
 export const Workspace = {
+  /**
+   * @deprecated Prefer ArtifactProject route declarations for new Schema IDE
+   * projects. Workspace.Struct remains as a compatibility projection API.
+   */
   Struct<const Fields extends FieldShape>(
     fields: Fields,
   ): WorkspaceSchema<StructValue<Fields>, StructRoutes<Fields>> {
     return new StructWorkspaceSchema(fields);
   },
 
+  /**
+   * @deprecated Prefer ArtifactProject.files for new Schema IDE projects.
+   * This helper remains for compatibility workspace schemas.
+   */
   files<const Pattern extends string, A>(
     pattern: Pattern,
     schema: Schema.Schema<A>,
@@ -482,6 +490,10 @@ export const Workspace = {
     return new FileSetSchema(pattern, schema, { optional: options?.optional });
   },
 
+  /**
+   * @deprecated Prefer ArtifactProject.files with route mode "file" for new
+   * Schema IDE projects. This helper remains for compatibility workspace schemas.
+   */
   file<const Path extends string, A>(
     path: Path,
     schema: Schema.Schema<A>,
@@ -497,6 +509,10 @@ export const Workspace = {
     return new MappedFieldSchema(field, (files) => files[0]?.value ?? null, { single: true });
   },
 
+  /**
+   * @deprecated Prefer ArtifactProject route config indexBy metadata for new
+   * Schema IDE projects. This helper remains for compatibility workspace schemas.
+   */
   indexBy<A extends Record<PropertyKey, unknown>, K extends keyof A>(
     key: K,
   ): <Routes extends WorkspaceRouteMap>(
@@ -519,6 +535,10 @@ export const Workspace = {
       );
   },
 
+  /**
+   * @deprecated Prefer ArtifactProject route config mode "values" for new
+   * Schema IDE projects. This helper remains for compatibility workspace schemas.
+   */
   values<A>(): <Routes extends WorkspaceRouteMap>(
     field: FieldSchema<readonly MatchedFile<A>[], Routes>,
   ) => FieldSchema<readonly A[], Routes> {
@@ -528,6 +548,11 @@ export const Workspace = {
 
   annotations: workspaceAnnotations,
 
+  /**
+   * @deprecated Prefer artifact runtime projectDiagnostics or schema-algebra
+   * views for new Schema IDE projects. This helper remains for compatibility
+   * workspace schemas.
+   */
   validate<A>(
     name: string,
     validate: WorkspaceValidator<A>,
@@ -537,6 +562,10 @@ export const Workspace = {
     return (schema) => new ValidatedWorkspaceSchema(schema, name, validate);
   },
 
+  /**
+   * @deprecated Prefer artifact-native validation views for new Schema IDE
+   * projects. This helper remains for compatibility workspace schemas.
+   */
   filter<A>(
     name: string,
     predicate: (value: A) => boolean,
@@ -551,6 +580,10 @@ export const Workspace = {
     });
   },
 
+  /**
+   * @deprecated Prefer artifact-native decoded views for new Schema IDE
+   * projects. This helper remains for compatibility workspace schemas.
+   */
   transform<A, B>(
     transform: (value: A) => B,
   ): <Routes extends WorkspaceRouteMap>(

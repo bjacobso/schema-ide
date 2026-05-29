@@ -243,6 +243,7 @@ function createArtifactRuntime(
       : {}),
     ...(workspace.relationSchema ? { relationSchema: workspace.relationSchema } : {}),
     ...(workspace.relationValue ? { relationValue: workspace.relationValue } : {}),
+    ...(workspace.projectDiagnostics ? { projectDiagnostics: workspace.projectDiagnostics } : {}),
   });
 }
 
@@ -264,6 +265,7 @@ function artifactReflection(
       : {}),
     ...(workspace.relationSchema ? { relationSchema: workspace.relationSchema } : {}),
     ...(workspace.relationValue ? { relationValue: workspace.relationValue } : {}),
+    ...(workspace.projectDiagnostics ? { projectDiagnostics: workspace.projectDiagnostics } : {}),
   }).reflection;
 }
 

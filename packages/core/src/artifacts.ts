@@ -125,6 +125,16 @@ export interface CreateSchemaIdeArtifactRuntimeOptions<A = unknown> {
   readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
   readonly relationSchema?: AnySchema | undefined;
   readonly relationValue?: ((value: any) => unknown) | undefined;
+  readonly projectDiagnostics?:
+    | ((
+        value: A,
+        context: {
+          readonly files: readonly SourceFile[];
+          readonly activeFile: string | null;
+          readonly activeFormat: SchemaIdeDocumentFormat;
+        },
+      ) => readonly SchemaIdeDiagnostic[])
+    | undefined;
 }
 
 export interface CreateArtifactProjectFromWorkspaceOptions {
@@ -492,6 +502,7 @@ export function createSchemaIdeArtifactRuntime<A>(
     relationInputSchema = schema,
     relationSchema = schema && hasAst(schema) ? schema : undefined,
     relationValue = (value) => value,
+    projectDiagnostics,
   } = options;
   const store =
     options.store ??
@@ -509,20 +520,29 @@ export function createSchemaIdeArtifactRuntime<A>(
       : SchemaIdeArtifactProject;
   const runtimeFiles = collectFiles(store);
   const runtimeValidation = runtimeFiles.pipe(
-    Effect.map((currentFiles) =>
-      schema
-        ? validateSchemaIdeValue({
-            schema,
-            files: currentFiles,
-            activeFile,
-            activeFormat,
-          })
-        : validateArtifactProjectValue({
-            project,
-            files: currentFiles,
-            activeFormat,
-          }),
-    ),
+    Effect.map((currentFiles) => {
+      const validation = (
+        schema
+          ? validateSchemaIdeValue({
+              schema,
+              files: currentFiles,
+              activeFile,
+              activeFormat,
+            })
+          : validateArtifactProjectValue({
+              project,
+              files: currentFiles,
+              activeFormat,
+            })
+      ) as ValidationResult<A>;
+      return appendProjectDiagnostics(
+        validation,
+        currentFiles,
+        activeFile,
+        activeFormat,
+        projectDiagnostics,
+      );
+    }),
   );
   const runtimeRelationInputValidation: Effect.Effect<
     ValidationResult<any>,
@@ -544,12 +564,18 @@ export function createSchemaIdeArtifactRuntime<A>(
   const runtimeReflection = Effect.gen(function* () {
     const currentFiles = yield* runtimeFiles;
     if (schema) {
-      const validation = validateSchemaIdeValue({
-        schema,
-        files: currentFiles,
+      const validation = appendProjectDiagnostics(
+        validateSchemaIdeValue({
+          schema,
+          files: currentFiles,
+          activeFile,
+          activeFormat,
+        }),
+        currentFiles,
         activeFile,
         activeFormat,
-      });
+        projectDiagnostics,
+      );
       return createReflection({
         schema,
         files: currentFiles,
@@ -559,11 +585,17 @@ export function createSchemaIdeArtifactRuntime<A>(
       });
     }
 
-    const validation = validateArtifactProjectValue({
-      project,
-      files: currentFiles,
+    const validation = appendProjectDiagnostics(
+      validateArtifactProjectValue({
+        project,
+        files: currentFiles,
+        activeFormat,
+      }) as ValidationResult<A>,
+      currentFiles,
+      activeFile,
       activeFormat,
-    });
+      projectDiagnostics,
+    );
     return createArtifactProjectReflection({
       project,
       files: currentFiles,
@@ -619,6 +651,7 @@ export function createSchemaIdeArtifactRuntime<A>(
       ...(relationSchema ? { relationSchema } : {}),
       ...(relationInputSchema && relationInputSchema !== schema ? { relationInputSchema } : {}),
       relationValue,
+      ...(projectDiagnostics ? { projectDiagnostics } : {}),
     }).reflection;
 
   const registry = ArtifactRegistry.make(project.api)
@@ -820,6 +853,35 @@ function validateArtifactProjectValue({
     diagnostics,
     summary: summarizeDiagnostics(diagnostics),
     routeMatches: artifactProjectRouteMatches(project, files, activeFormat),
+  };
+}
+
+function appendProjectDiagnostics<A>(
+  validation: ValidationResult<A>,
+  files: readonly SourceFile[],
+  activeFile: string | null,
+  activeFormat: SchemaIdeDocumentFormat,
+  projectDiagnostics: CreateSchemaIdeArtifactRuntimeOptions<A>["projectDiagnostics"] | undefined,
+): ValidationResult<A> {
+  if (
+    !projectDiagnostics ||
+    validation.value === null ||
+    validation.diagnostics.some((diagnostic) => diagnostic.severity === "error")
+  ) {
+    return validation;
+  }
+
+  const diagnostics = [
+    ...validation.diagnostics,
+    ...projectDiagnostics(validation.value, { files, activeFile, activeFormat }),
+  ];
+  return {
+    value: diagnostics.some((diagnostic) => diagnostic.severity === "error")
+      ? null
+      : validation.value,
+    diagnostics,
+    summary: summarizeDiagnostics(diagnostics),
+    routeMatches: validation.routeMatches,
   };
 }
 

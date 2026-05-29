@@ -43,8 +43,8 @@ const artifacts = createSchemaIdeArtifactRuntime({
 const diagnostics = await Effect.runPromise(artifacts.view(ArtifactRef.workspace(), "diagnostics"));
 ```
 
-`Workspace.Struct` remains available as a compatibility declaration API while
-first-party code migrates to artifact projects:
+`Workspace.Struct` remains available as a deprecated compatibility declaration
+API for older callers:
 
 ```ts
 import { Effect } from "effect";

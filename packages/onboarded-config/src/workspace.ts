@@ -1,4 +1,9 @@
-import { Workspace } from "@schema-ide/core";
+import {
+  Workspace,
+  type SchemaIdeDiagnostic,
+  type SourceFile,
+  type WorkspaceValidationIssue,
+} from "@schema-ide/core";
 import { type OnboardedAccountConfig } from "./account";
 import {
   buildAttributeRegistry,
@@ -88,52 +93,79 @@ export const OnboardedAccountWorkspaceSchema = OnboardedAccountWorkspaceBaseSche
   Workspace.validate<AccountWorkspaceValue>(
     "onboarded account workspace references resolve",
     (workspace, issue, context) => {
-      const attributes = buildAttributeRegistry(workspace.attributes);
-      const forms = buildIdMap(workspace.forms, "forms", issue);
-      const formSubscriptions = buildIdMap(workspace.formSubscriptions, "formSubscriptions", issue);
-      const allForms = new Map<string, unknown>();
-      for (const [id, form] of forms) allForms.set(id, form);
-      for (const [id, subscription] of formSubscriptions) allForms.set(id, subscription);
-      const documents = buildDocumentRegistry(workspace.documents, issue);
-      const pdfInspections = buildPdfInspectRegistry(workspace.pdfInspections);
-      const pdfAnnotations = buildPdfAnnotationRegistry(workspace.pdfAnnotations);
-      buildIdMap(workspace.pdfMappings, "pdfMappings", issue);
-      const policies = buildIdMap(workspace.policies, "policies", issue);
-
-      validateAttributeCatalog(workspace.attributes, issue);
-      validateFormNamespace(forms, formSubscriptions, issue);
-      validateOnboardedRelations(workspace, documents, pdfInspections, pdfAnnotations, issue);
-
-      for (const form of workspace.forms) {
-        validateForm(form, attributes, issue);
-      }
-
-      for (const policy of workspace.policies) {
-        validatePolicy(policy, allForms, attributes, issue);
-      }
-
-      for (const document of workspace.documents) {
-        validateDocumentConfig(document, context.files, pdfInspections, pdfAnnotations, issue);
-      }
-
-      for (const mapping of workspace.pdfMappings) {
-        validatePdfMapping(mapping, documents, pdfInspections, issue);
-      }
-
-      for (const automation of workspace.automations) {
-        validateAutomation(automation, allForms, policies, attributes, issue);
-      }
-
-      for (const manifest of workspace.imports) {
-        for (const form of manifest.forms ?? []) {
-          if (!forms.has(form.workspaceForm)) {
-            issue.at(
-              `imports.${manifest.source}.forms`,
-              `Unknown imported workspace form: ${form.workspaceForm}`,
-            );
-          }
-        }
+      for (const diagnostic of validateOnboardedAccountWorkspaceValue(workspace, context.files)) {
+        issue.at(diagnostic.documentPath ?? "onboarded", diagnostic.message, diagnostic.path);
       }
     },
   ),
 );
+
+export function validateOnboardedAccountWorkspaceValue(
+  workspace: AccountWorkspaceValue,
+  files: readonly SourceFile[],
+): readonly SchemaIdeDiagnostic[] {
+  const diagnostics: SchemaIdeDiagnostic[] = [];
+  const issue = onboardedIssue(diagnostics);
+  const attributes = buildAttributeRegistry(workspace.attributes);
+  const forms = buildIdMap(workspace.forms, "forms", issue);
+  const formSubscriptions = buildIdMap(workspace.formSubscriptions, "formSubscriptions", issue);
+  const allForms = new Map<string, unknown>();
+  for (const [id, form] of forms) allForms.set(id, form);
+  for (const [id, subscription] of formSubscriptions) allForms.set(id, subscription);
+  const documents = buildDocumentRegistry(workspace.documents, issue);
+  const pdfInspections = buildPdfInspectRegistry(workspace.pdfInspections);
+  const pdfAnnotations = buildPdfAnnotationRegistry(workspace.pdfAnnotations);
+  buildIdMap(workspace.pdfMappings, "pdfMappings", issue);
+  const policies = buildIdMap(workspace.policies, "policies", issue);
+
+  validateAttributeCatalog(workspace.attributes, issue);
+  validateFormNamespace(forms, formSubscriptions, issue);
+  validateOnboardedRelations(workspace, documents, pdfInspections, pdfAnnotations, issue);
+
+  for (const form of workspace.forms) {
+    validateForm(form, attributes, issue);
+  }
+
+  for (const policy of workspace.policies) {
+    validatePolicy(policy, allForms, attributes, issue);
+  }
+
+  for (const document of workspace.documents) {
+    validateDocumentConfig(document, files, pdfInspections, pdfAnnotations, issue);
+  }
+
+  for (const mapping of workspace.pdfMappings) {
+    validatePdfMapping(mapping, documents, pdfInspections, issue);
+  }
+
+  for (const automation of workspace.automations) {
+    validateAutomation(automation, allForms, policies, attributes, issue);
+  }
+
+  for (const manifest of workspace.imports) {
+    for (const form of manifest.forms ?? []) {
+      if (!forms.has(form.workspaceForm)) {
+        issue.at(
+          `imports.${manifest.source}.forms`,
+          `Unknown imported workspace form: ${form.workspaceForm}`,
+        );
+      }
+    }
+  }
+
+  return diagnostics;
+}
+
+function onboardedIssue(diagnostics: SchemaIdeDiagnostic[]): WorkspaceValidationIssue {
+  return {
+    at: (documentPath, message, path = null) => {
+      diagnostics.push({
+        path,
+        documentPath,
+        severity: "error",
+        source: "cross-file",
+        message,
+      });
+    },
+  };
+}

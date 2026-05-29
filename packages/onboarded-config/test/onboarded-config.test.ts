@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
@@ -82,6 +83,51 @@ describe("onboarded-config", () => {
       );
     } finally {
       await Effect.runPromise(client.close);
+    }
+  }, 45_000);
+
+  it("runs onboarded domain diagnostics through the generic artifact project config", async () => {
+    const workspace = await loadSchemaIdeWorkspaceConfig(fixtureConfigPath);
+    const directory = await mkdtemp(join(tmpdir(), "schema-ide-onboarded-"));
+
+    try {
+      await writeWorkspaceFiles(directory, brokenOnboardedFiles());
+      const reflection = await validateWorkspaceDirectory({
+        workspace,
+        directory,
+        activeFile: "policies/broken.yaml",
+      });
+      const messages = reflection.diagnostics.map((diagnostic) => diagnostic.message);
+
+      expect(reflection.validationSummary.valid).toBe(false);
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          "Unknown rule fact path: placement.branch_code",
+          "Unknown form: missing-form",
+          "Unsupported trigger property for task: unsupported_property",
+          "Unknown form in task.form rule: missing-form",
+          "Unknown wait step fact path: employee.custom_attributes.missing",
+        ]),
+      );
+
+      const client = createLocalFilesystemWorkspaceClient({ workspace, directory });
+      try {
+        const diagnostics = await Effect.runPromise(
+          client.readArtifactView({
+            ref: { _tag: "Workspace", workspaceId: "onboarded-account-yaml" },
+            view: "diagnostics",
+          }),
+        );
+        expect(
+          (diagnostics.value as readonly { readonly message: string }[]).map(
+            (diagnostic) => diagnostic.message,
+          ),
+        ).toEqual(expect.arrayContaining(messages));
+      } finally {
+        await Effect.runPromise(client.close);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
   }, 45_000);
 
@@ -192,74 +238,7 @@ describe("onboarded-config", () => {
   it("validates onboarded account workspace references", async () => {
     const runtime = createOnboardedArtifactRuntime({
       activeFile: "policies/broken.yaml",
-      files: [
-        yamlFile("account.yaml", [
-          "id: broken-account",
-          "name: Broken Account",
-          "mode: test",
-          "timezone: America/Chicago",
-          "language: en",
-        ]),
-        yamlFile("attributes.yaml", [
-          "custom:",
-          "  employee:",
-          "    - key: badge_number",
-          "      label: Badge Number",
-          "      type: string",
-        ]),
-        yamlFile("forms/intake.yaml", [
-          "id: intake",
-          "name: Intake",
-          "status: draft",
-          "version:",
-          "  name: Intake",
-          "  description: null",
-          "  pages:",
-          "    - description: null",
-          "      assignee: employee",
-          "      fields:",
-          "        - path: form.signature",
-          "          type: signature",
-          "          required: true",
-        ]),
-        yamlFile("policies/broken.yaml", [
-          "id: broken-policy",
-          "name: Broken Policy",
-          "status: draft",
-          "appliesTo: placement",
-          "when:",
-          "  all:",
-          "    - fact: placement.branch_code",
-          "      operator: equal",
-          "      value: north-branch",
-          "requires:",
-          "  forms:",
-          "    - form: missing-form",
-        ]),
-        yamlFile("automations/broken.yaml", [
-          "id: broken-automation",
-          "name: Broken Automation",
-          "status: draft",
-          "trigger:",
-          "  entity: task",
-          "  on: updated",
-          "  properties:",
-          "    - unsupported_property",
-          "when:",
-          "  all:",
-          "    - fact: task.form",
-          "      operator: equal",
-          "      value: missing-form",
-          "steps:",
-          "  - id: wait",
-          "    type: wait",
-          "    until:",
-          "      fact: employee.custom_attributes.missing",
-          "      offset:",
-          "        amount: 1",
-          "        unit: day",
-        ]),
-      ],
+      files: brokenOnboardedFiles(),
     });
     const workspaceRef = { _tag: "Workspace", workspaceId: "onboarded-account-yaml" } as const;
     const summary = await Effect.runPromise(runtime.view(workspaceRef, "validationSummary"));
@@ -445,4 +424,86 @@ function yamlFile(path: string, lines: readonly string[]) {
     path,
     content: `${lines.join("\n")}\n`,
   };
+}
+
+function brokenOnboardedFiles() {
+  return [
+    yamlFile("account.yaml", [
+      "id: broken-account",
+      "name: Broken Account",
+      "mode: test",
+      "timezone: America/Chicago",
+      "language: en",
+    ]),
+    yamlFile("attributes.yaml", [
+      "custom:",
+      "  employee:",
+      "    - key: badge_number",
+      "      label: Badge Number",
+      "      type: string",
+    ]),
+    yamlFile("forms/intake.yaml", [
+      "id: intake",
+      "name: Intake",
+      "status: draft",
+      "version:",
+      "  name: Intake",
+      "  description: null",
+      "  pages:",
+      "    - description: null",
+      "      assignee: employee",
+      "      fields:",
+      "        - path: form.signature",
+      "          type: signature",
+      "          required: true",
+    ]),
+    yamlFile("policies/broken.yaml", [
+      "id: broken-policy",
+      "name: Broken Policy",
+      "status: draft",
+      "appliesTo: placement",
+      "when:",
+      "  all:",
+      "    - fact: placement.branch_code",
+      "      operator: equal",
+      "      value: north-branch",
+      "requires:",
+      "  forms:",
+      "    - form: missing-form",
+    ]),
+    yamlFile("automations/broken.yaml", [
+      "id: broken-automation",
+      "name: Broken Automation",
+      "status: draft",
+      "trigger:",
+      "  entity: task",
+      "  on: updated",
+      "  properties:",
+      "    - unsupported_property",
+      "when:",
+      "  all:",
+      "    - fact: task.form",
+      "      operator: equal",
+      "      value: missing-form",
+      "steps:",
+      "  - id: wait",
+      "    type: wait",
+      "    until:",
+      "      fact: employee.custom_attributes.missing",
+      "      offset:",
+      "        amount: 1",
+      "        unit: day",
+    ]),
+  ];
+}
+
+async function writeWorkspaceFiles(
+  directory: string,
+  files: readonly { readonly path: string; readonly content: string }[],
+) {
+  for (const file of files) {
+    const absolutePath = join(directory, file.path);
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, file.content);
+  }
 }

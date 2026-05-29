@@ -9,8 +9,8 @@ This package is the extraction target for `@schema-ide/react`.
 
 Artifact-first projects can use `<SchemaIde project={...}>`. When every route
 declares a schema, React can read source text, decoded values, diagnostics, JSON
-Schemas, and reflection from the artifact project runtime without requiring a
-separate `Workspace.Struct`:
+Schemas, and reflection from the artifact project runtime without using the
+deprecated `Workspace.Struct` compatibility API:
 
 ```tsx
 import { Schema } from "effect";

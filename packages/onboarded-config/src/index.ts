@@ -78,5 +78,6 @@ export {
 export {
   OnboardedAccountWorkspaceBaseSchema,
   OnboardedAccountWorkspaceSchema,
+  validateOnboardedAccountWorkspaceValue,
   type AccountWorkspaceValue,
 } from "./workspace";

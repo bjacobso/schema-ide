@@ -11,6 +11,7 @@ import {
   formatForPath,
   isWorkspaceSchema,
   type AnySchema,
+  type CreateSchemaIdeArtifactRuntimeOptions,
   type ReflectedSchema,
   type SchemaIdeDocumentFormat,
   type SchemaIdeDiagnostic,
@@ -66,6 +67,9 @@ export interface SchemaIdeCliWorkspace<
   readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
   readonly relationSchema?: AnySchema | undefined;
   readonly relationValue?: ((value: any) => unknown) | undefined;
+  readonly projectDiagnostics?:
+    | CreateSchemaIdeArtifactRuntimeOptions<A>["projectDiagnostics"]
+    | undefined;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly include?: readonly string[] | undefined;
   readonly exclude?: readonly string[] | undefined;
@@ -81,10 +85,15 @@ export interface SchemaIdeCliProject<
   readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
   readonly relationSchema?: AnySchema | undefined;
   readonly relationValue?: ((value: any) => unknown) | undefined;
+  readonly projectDiagnostics?:
+    | CreateSchemaIdeArtifactRuntimeOptions<A>["projectDiagnostics"]
+    | undefined;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly include?: readonly string[] | undefined;
   readonly exclude?: readonly string[] | undefined;
 }
+
+type AnySchemaIdeCliWorkspace = SchemaIdeCliWorkspace<any, any>;
 
 export interface ReadSourceFilesOptions {
   readonly directory: string;
@@ -152,7 +161,7 @@ interface ParsedCliOptions {
 }
 
 export interface SchemaIdeServeOptions {
-  readonly workspace: SchemaIdeCliWorkspace;
+  readonly workspace: AnySchemaIdeCliWorkspace;
   readonly directory: string;
   readonly port?: number | undefined;
   readonly staticDir?: string | undefined;
@@ -180,7 +189,10 @@ export function createSchemaIdeCli(options: SchemaIdeCliOptions = {}): SchemaIde
   };
 }
 
-export function createEmbeddedSchemaIdeCli(options: EmbeddedSchemaIdeCliOptions): SchemaIdeCli {
+export function createEmbeddedSchemaIdeCli<
+  A = unknown,
+  Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
+>(options: EmbeddedSchemaIdeCliOptions<A, Routes>): SchemaIdeCli {
   return {
     run: (argv) => runEmbeddedSchemaIdeCli(argv, options),
     main: (argv) => runEmbeddedSchemaIdeCliMain(argv ?? process.argv.slice(2), options),
@@ -211,7 +223,7 @@ export async function runSchemaIdeCli(
 
 async function runSchemaIdeCliCommand(
   options: ParsedCliOptions,
-  workspace: SchemaIdeCliWorkspace,
+  workspace: AnySchemaIdeCliWorkspace,
 ): Promise<SchemaIdeCliResult> {
   if (isServeCommand(options.command)) {
     return {
@@ -281,9 +293,12 @@ async function runSchemaIdeCliCommand(
   };
 }
 
-async function runEmbeddedSchemaIdeCli(
+async function runEmbeddedSchemaIdeCli<
+  A = unknown,
+  Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
+>(
   argv: readonly string[],
-  cliOptions: EmbeddedSchemaIdeCliOptions,
+  cliOptions: EmbeddedSchemaIdeCliOptions<A, Routes>,
 ): Promise<SchemaIdeCliResult> {
   const options = parseArgs(argv, "serve");
 
@@ -328,10 +343,10 @@ async function runSchemaIdeCliMain(
   }
 }
 
-async function runEmbeddedSchemaIdeCliMain(
-  argv: readonly string[],
-  cliOptions: EmbeddedSchemaIdeCliOptions,
-): Promise<void> {
+async function runEmbeddedSchemaIdeCliMain<
+  A = unknown,
+  Routes extends WorkspaceRouteMap = WorkspaceRouteMap,
+>(argv: readonly string[], cliOptions: EmbeddedSchemaIdeCliOptions<A, Routes>): Promise<void> {
   const options = parseArgs(argv, "serve");
   if (!isServeCommand(options.command)) {
     await writeCliResult(() => runEmbeddedSchemaIdeCli(argv, cliOptions));
@@ -357,9 +372,9 @@ async function runEmbeddedSchemaIdeCliMain(
 }
 
 async function runServeMain(
-  workspace: SchemaIdeCliWorkspace,
+  workspace: AnySchemaIdeCliWorkspace,
   options: ParsedCliOptions,
-  cliOptions: Pick<SchemaIdeCliOptions, "staticAssets">,
+  cliOptions: Pick<SchemaIdeCliOptions<any, any>, "staticAssets">,
 ): Promise<void> {
   const staticDir = options.staticDir ?? resolveDefaultStaticDir();
   const staticAssets = staticDir ? undefined : cliOptions.staticAssets;
@@ -519,6 +534,7 @@ export async function validateWorkspaceDirectory<
       : {}),
     ...(workspace.relationSchema ? { relationSchema: workspace.relationSchema } : {}),
     ...(workspace.relationValue ? { relationValue: workspace.relationValue } : {}),
+    ...(workspace.projectDiagnostics ? { projectDiagnostics: workspace.projectDiagnostics } : {}),
   });
 
   return Effect.runPromise(
@@ -621,6 +637,7 @@ function projectConfigToWorkspace<A, Routes extends WorkspaceRouteMap = Workspac
   relationInputSchema,
   relationSchema,
   relationValue,
+  projectDiagnostics,
   defaultFormat,
   include,
   exclude,
@@ -634,6 +651,7 @@ function projectConfigToWorkspace<A, Routes extends WorkspaceRouteMap = Workspac
     ...(relationInputSchema ? { relationInputSchema } : {}),
     ...(relationSchema ? { relationSchema } : {}),
     ...(relationValue ? { relationValue } : {}),
+    ...(projectDiagnostics ? { projectDiagnostics } : {}),
     ...(defaultFormat ? { defaultFormat } : {}),
     ...(include ? { include } : {}),
     ...(exclude ? { exclude } : {}),
@@ -838,7 +856,7 @@ function summarizeReflection(reflection: SchemaIdeReflection) {
   };
 }
 
-function helpText(options: SchemaIdeCliOptions): string {
+function helpText(options: SchemaIdeCliOptions<any, any>): string {
   const name = options.name ?? "schema-ide";
   const schemaOption =
     options.workspace || options.schemaPath ? " [--schema <path>]" : " --schema <path>";

@@ -897,7 +897,7 @@ Then update:
 
 Onboarded becomes the proof that artifacts can fully replace workspaces.
 
-Status: partially implemented. `OnboardedArtifactProject` and its serializable
+Status: implemented for the current package surface. `OnboardedArtifactProject` and its serializable
 YAML config are now the route source of truth for the packaged Onboarded sample.
 `OnboardedAccountWorkspaceSchema` is derived from that artifact project through
 the compatibility projection, and the existing cross-file validations remain
@@ -905,9 +905,15 @@ attached while schema-algebra relation views continue to be exposed as artifact
 views. Onboarded artifact runtimes now derive relation views from a structural
 artifact-project decode, so relation diagnostics and patch suggestions remain
 available even when compatibility workspace validation reports cross-file
-errors. The remaining work is to remove UI/CLI naming that still says
-"workspace" and to finish moving bespoke Onboarded validation behavior into
-artifact-native schema-algebra views.
+errors. Onboarded runtime validation now decodes from the artifact project
+projection and appends Onboarded domain diagnostics through an artifact runtime
+diagnostics hook instead of requiring the full validating compatibility
+workspace schema. The same hook is carried by `defineSchemaIdeProject` configs,
+local filesystem clients, and CLI directory validation, so the checked-in
+generic Onboarded `schema-ide.config.ts` reports bespoke Onboarded validation
+errors through artifact `diagnostics` views. The package now exposes
+`OnboardedConfigProject` as the canonical embedded CLI config and keeps
+`OnboardedConfigWorkspace` only as a deprecated compatibility alias.
 
 CLI configuration naming has started moving in this direction:
 `defineSchemaIdeProject` now accepts an artifact project as the primary config
@@ -1119,6 +1125,9 @@ declarations to avoid an artifact/workspace import cycle.
 `@schema-ide/cli` now also exposes `defineSchemaIdeProject`, letting
 artifact-native configs export `{ project }` first while older
 `defineSchemaIdeWorkspace` configs remain supported.
+`Workspace.Struct` and the related workspace authoring helpers now carry JSDoc
+`@deprecated` notices, and the root, core, CLI, and React READMEs describe
+workspace authoring as deprecated compatibility while keeping the API available.
 
 ### Recommended Order Of Work
 
@@ -1380,6 +1389,14 @@ Acceptance criteria:
 - Any remaining workspace-named exports are compatibility aliases or clearly
   documented migration shims.
 
+Status: implemented for the current package surface. Onboarded route
+declarations are authored in `artifact-project.yaml` and materialized as
+`OnboardedArtifactProject`; the YAML config round-trips against the generic
+artifact project schema; the package runtime, embedded CLI, generic CLI config,
+and tests execute validation, reflection, diagnostics, and schema-algebra views
+through artifact runtime views. Workspace-named package exports that remain are
+compatibility shims.
+
 ### Phase G: Deprecate Workspace.Struct
 
 Goal: make the old API visibly legacy after first-party code no longer depends
@@ -1464,9 +1481,9 @@ runtime before showing `Workspace.Struct` as compatibility.
 - [x] CLI configs prefer artifact projects.
 - [x] Agent tools use artifact refs/views.
 - [x] Protocol exposes artifact capabilities, views, writes, and watch events.
-- [ ] Onboarded is artifact-native end to end.
+- [x] Onboarded is artifact-native end to end.
 - [x] Docs teach artifact projects first.
-- [ ] `Workspace.Struct` is marked deprecated only after the above are true.
+- [x] `Workspace.Struct` is marked deprecated only after the above are true.
 
 ### Risks And Guardrails
 
