@@ -44,6 +44,7 @@ export type {
   ArtifactFileRouteOptions,
   ArtifactProjectFileConfig,
   ArtifactProjectFromConfigEnvironment,
+  ArtifactProjectOptions,
   ArtifactProjectCapability,
   ArtifactProjectRouteId,
   ArtifactProjectRoutes,

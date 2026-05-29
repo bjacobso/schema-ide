@@ -16,6 +16,7 @@ export interface ArtifactFileRoute<
   readonly type: Type;
   readonly schema?: Schema.Schema<Value> | undefined;
   readonly metadata?: ArtifactMetadata | undefined;
+  readonly config?: ArtifactProjectFileConfig | undefined;
 }
 
 export interface ArtifactProjectCapability extends ArtifactCapability {
@@ -26,6 +27,7 @@ export interface ArtifactProjectCapability extends ArtifactCapability {
 export interface ArtifactFileRouteOptions {
   readonly id?: string | undefined;
   readonly metadata?: ArtifactMetadata | undefined;
+  readonly config?: ArtifactProjectFileConfig | undefined;
 }
 
 export interface ArtifactSchemaFileRouteConfig<
@@ -37,6 +39,7 @@ export interface ArtifactSchemaFileRouteConfig<
   readonly schema: Schema.Schema<A>;
   readonly id?: Id | undefined;
   readonly metadata?: ArtifactMetadata | undefined;
+  readonly config?: ArtifactProjectFileConfig | undefined;
 }
 
 export interface ArtifactProjectFileConfig {
@@ -55,6 +58,13 @@ export interface ArtifactProjectConfig {
   readonly defaultFormat?: string | undefined;
   readonly include?: readonly string[] | undefined;
   readonly files: readonly ArtifactProjectFileConfig[];
+  readonly algebra?: unknown;
+}
+
+export interface ArtifactProjectOptions {
+  readonly name?: string | undefined;
+  readonly defaultFormat?: string | undefined;
+  readonly include?: readonly string[] | undefined;
   readonly algebra?: unknown;
 }
 
@@ -82,6 +92,7 @@ export class ArtifactProjectDeclaration<
     readonly name: ProjectName,
     readonly routes: Routes = [] as unknown as Routes,
     workspaceType?: ArtifactTypeDeclaration<`${ProjectName}.workspace`, WorkspaceViews>,
+    readonly config: ArtifactProjectOptions = {},
   ) {
     this.workspaceType =
       workspaceType ??
@@ -147,7 +158,17 @@ export class ArtifactProjectDeclaration<
       this.name,
       [...this.routes, route] as const,
       this.workspaceType,
+      this.config,
     );
+  }
+
+  configure(
+    config: ArtifactProjectOptions,
+  ): ArtifactProjectDeclaration<ProjectName, Routes, WorkspaceViews> {
+    return new ArtifactProjectDeclaration(this.name, this.routes, this.workspaceType, {
+      ...this.config,
+      ...config,
+    });
   }
 
   view<ViewName extends Extract<keyof WorkspaceViews, string>>(
@@ -174,6 +195,7 @@ export class ArtifactProjectDeclaration<
         `${ProjectName}.workspace`,
         WorkspaceViews
       >,
+      this.config,
     );
   }
 
@@ -208,8 +230,11 @@ export class ArtifactProjectDeclaration<
 }
 
 export const ArtifactProject = {
-  make: <ProjectName extends string>(name: ProjectName): ArtifactProjectDeclaration<ProjectName> =>
-    new ArtifactProjectDeclaration(name),
+  make: <ProjectName extends string>(
+    name: ProjectName,
+    config?: ArtifactProjectOptions,
+  ): ArtifactProjectDeclaration<ProjectName> =>
+    new ArtifactProjectDeclaration(name, [], undefined, config),
   fromConfig,
   toConfig,
 } as const;
@@ -218,7 +243,12 @@ export function fromConfig(
   config: ArtifactProjectConfig,
   environment: ArtifactProjectFromConfigEnvironment,
 ): ArtifactProjectDeclaration<string, any, any> {
-  let project = ArtifactProject.make(config.id) as ArtifactProjectDeclaration<string, any, any>;
+  let project = ArtifactProject.make(config.id, {
+    ...(config.name ? { name: config.name } : {}),
+    ...(config.defaultFormat ? { defaultFormat: config.defaultFormat } : {}),
+    ...(config.include ? { include: config.include } : {}),
+    ...(config.algebra === undefined ? {} : { algebra: config.algebra }),
+  }) as ArtifactProjectDeclaration<string, any, any>;
 
   for (const file of config.files) {
     const artifact = environment.artifacts[file.artifact];
@@ -235,10 +265,12 @@ export function fromConfig(
           type: artifactType,
           schema,
           metadata,
+          config: file,
         })
       : project.files(file.pattern, artifactType, {
           id: file.id,
           metadata,
+          config: file,
         });
   }
 
@@ -250,21 +282,11 @@ export function toConfig(
 ): ArtifactProjectConfig {
   return {
     id: project.name,
-    files: project.routes.map((route: ArtifactFileRoute) => ({
-      id: route.id,
-      pattern: route.pattern,
-      artifact: artifactNameFromRoute(route),
-      ...(typeof route.metadata?.attributes?.["format"] === "string"
-        ? { format: route.metadata.attributes["format"] }
-        : {}),
-      ...(typeof route.metadata?.attributes?.["description"] === "string"
-        ? { description: route.metadata.attributes["description"] }
-        : {}),
-      ...(typeof route.metadata?.attributes?.["optional"] === "boolean"
-        ? { optional: route.metadata.attributes["optional"] }
-        : {}),
-      ...(route.metadata ? { metadata: route.metadata } : {}),
-    })),
+    ...(project.config.name ? { name: project.config.name } : {}),
+    ...(project.config.defaultFormat ? { defaultFormat: project.config.defaultFormat } : {}),
+    ...(project.config.include ? { include: project.config.include } : {}),
+    files: project.routes.map((route: ArtifactFileRoute) => route.config ?? routeToConfig(route)),
+    ...(project.config.algebra === undefined ? {} : { algebra: project.config.algebra }),
   };
 }
 
@@ -278,6 +300,7 @@ function makeRoute<Type extends AnyArtifactType>(
     pattern,
     type,
     ...(options.metadata ? { metadata: options.metadata } : {}),
+    ...(options.config ? { config: options.config } : {}),
   };
   return route;
 }
@@ -343,6 +366,25 @@ function makeSchemaRoute<
     type,
     schema: config.schema,
     ...(config.metadata ? { metadata: config.metadata } : {}),
+    ...(config.config ? { config: config.config } : {}),
+  };
+}
+
+function routeToConfig(route: ArtifactFileRoute): ArtifactProjectFileConfig {
+  return {
+    id: route.id,
+    pattern: route.pattern,
+    artifact: artifactNameFromRoute(route),
+    ...(typeof route.metadata?.attributes?.["format"] === "string"
+      ? { format: route.metadata.attributes["format"] }
+      : {}),
+    ...(typeof route.metadata?.attributes?.["description"] === "string"
+      ? { description: route.metadata.attributes["description"] }
+      : {}),
+    ...(typeof route.metadata?.attributes?.["optional"] === "boolean"
+      ? { optional: route.metadata.attributes["optional"] }
+      : {}),
+    ...(route.metadata ? { metadata: route.metadata } : {}),
   };
 }
 

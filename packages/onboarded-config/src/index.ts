@@ -7,6 +7,7 @@ export {
   OnboardedArtifactProjectRouteSchema,
   createOnboardedArtifactProject,
   parseOnboardedArtifactProjectConfig,
+  serializeOnboardedArtifactProjectConfig,
   type OnboardedArtifactProjectConfig,
   type OnboardedArtifactProjectRoute,
 } from "./artifacts";

@@ -1,4 +1,8 @@
-import { decodeYamlEither, SchemaIdeWorkspaceFileArtifact } from "@schema-ide/core";
+import {
+  decodeYamlEither,
+  SchemaIdeWorkspaceFileArtifact,
+  stringifyDocument,
+} from "@schema-ide/core";
 import {
   ArtifactProject,
   type AnyArtifactType,
@@ -177,6 +181,14 @@ export function parseOnboardedArtifactProjectConfig(text: string): OnboardedArti
   const result = decodeYamlEither(OnboardedArtifactProjectConfigSchema, text);
   if (Result.isSuccess(result)) return result.success;
   throw new Error(SchemaIssue.makeFormatterDefault()(result.failure));
+}
+
+export function serializeOnboardedArtifactProjectConfig(
+  config: OnboardedArtifactProjectConfig = Schema.decodeUnknownSync(
+    OnboardedArtifactProjectConfigSchema,
+  )(ArtifactProject.toConfig(OnboardedArtifactProject)),
+): string {
+  return stringifyDocument(config, "yaml");
 }
 
 function schemaArtifact(schema: Schema.Schema<unknown>): ArtifactProjectConfigArtifact {

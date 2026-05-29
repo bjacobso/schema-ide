@@ -250,18 +250,7 @@ describe("schema-ide-artifacts", () => {
     expect(Project.name).toBe("demo");
     expect(Project.route(ref)[0]?.schema).toBe(ParsedConfig);
     expect(Project.capabilities(ref).map((capability) => capability.routeId)).toEqual(["configs"]);
-    expect(ArtifactProject.toConfig(Project)).toMatchObject({
-      id: "demo",
-      files: [
-        {
-          id: "configs",
-          pattern: "config/*.json",
-          artifact: "Config",
-          format: "json",
-          description: "Config files.",
-        },
-      ],
-    });
+    expect(ArtifactProject.toConfig(Project)).toEqual(config);
   });
 
   it("stores workspace file artifacts in memory", async () => {

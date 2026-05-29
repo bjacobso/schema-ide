@@ -66,13 +66,26 @@ const fileCaps = Project.capabilities(ArtifactRef.workspaceFile("config/app.json
 const workspaceCaps = Project.capabilities(ArtifactRef.workspace());
 ```
 
+Serializable project configs can become executable projects when a host supplies
+the non-serializable schemas and artifact types:
+
+```ts
+const config = ArtifactProject.toConfig(Project);
+const ProjectFromConfig = ArtifactProject.fromConfig(config, {
+  artifacts: {
+    json: Json,
+  },
+});
+```
+
 ## Status
 
 Implemented:
 
 - artifact refs for paths, URLs, blobs, git blobs, workspaces, and workspace files
 - artifact stores with an in-memory implementation for workspace files
-- artifact projects with file routes and project-level workspace views
+- artifact projects with file routes, project-level workspace views, and
+  serializable project config round-trips
 - pure matchers for extension, MIME type, URI scheme, ref tag, and metadata
 - artifact type and view declarations
 - view policy annotations

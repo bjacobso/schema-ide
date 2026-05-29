@@ -16,6 +16,7 @@ import {
   createOnboardedArtifactRuntime,
   createOnboardedArtifactRuntimeFromProjectConfig,
   parseOnboardedArtifactProjectConfig,
+  serializeOnboardedArtifactProjectConfig,
 } from "../src/index";
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,6 +139,9 @@ describe("onboarded-config", () => {
     const config = parseOnboardedArtifactProjectConfig(
       await readFile(fixtureArtifactProjectPath, "utf8"),
     );
+    const serializedConfig = parseOnboardedArtifactProjectConfig(
+      serializeOnboardedArtifactProjectConfig(),
+    );
     const files = await readSourceFilesFromDirectory({
       directory: fixtureDir,
       include: config.include,
@@ -145,6 +149,7 @@ describe("onboarded-config", () => {
     const runtime = createOnboardedArtifactRuntimeFromProjectConfig({ config, files });
 
     expect(config).toEqual(OnboardedArtifactProjectConfigDefinition);
+    expect(serializedConfig).toEqual(config);
     expect(config.files.map((route) => route.id)).toEqual([
       "account",
       "attributes",

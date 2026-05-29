@@ -570,6 +570,15 @@ shape. It also gives Onboarded a single configuration artifact that can drive:
 - docs and onboarding examples
 - protocol snapshots
 
+Status: started. `ArtifactProject.fromConfig` and `ArtifactProject.toConfig`
+now preserve the serializable project envelope (`name`, `defaultFormat`,
+`include`, and `algebra`) in addition to file routes. Routes created from config
+retain their original route config so executable projects can serialize back to
+clean YAML without leaking derived runtime metadata. Onboarded exposes
+`serializeOnboardedArtifactProjectConfig`, and its tests assert that the
+executable `OnboardedArtifactProject` round-trips to the checked-in
+`artifact-project.yaml` shape.
+
 ### How Workspace.Struct Gets Superseded
 
 `Workspace.Struct` should not disappear abruptly. It should first become a
