@@ -96,7 +96,7 @@ the binary should only speak the bundled project, such as a Node SEA build.
 import { createEmbeddedSchemaIdeCli, defineSchemaIdeProject } from "@schema-ide/cli";
 import { WorkflowArtifactProject } from "./schema";
 
-const workspace = defineSchemaIdeProject({
+const projectConfig = defineSchemaIdeProject({
   id: "workflow",
   project: WorkflowArtifactProject,
   defaultFormat: "yaml",
@@ -105,7 +105,7 @@ const workspace = defineSchemaIdeProject({
 
 await createEmbeddedSchemaIdeCli({
   name: "workflow",
-  workspace,
+  workspace: projectConfig,
 }).main();
 ```
 
@@ -123,6 +123,6 @@ module at runtime. The public `run` method is useful for tests or custom process
 handling:
 
 ```ts
-const cli = createSchemaIdeCli({ name: "workflow", workspace });
+const cli = createSchemaIdeCli({ name: "workflow", workspace: projectConfig });
 const result = await cli.run(["validate", "--dir", ".", "--json"]);
 ```

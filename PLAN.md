@@ -912,6 +912,10 @@ from the package-specific runtime helper. The first-party example and Onboarded
 test suites now validate bundled/sample files through artifact runtime views
 such as `routeMatches`, `validationSummary`, and `diagnostics` instead of
 calling the legacy validation helper directly.
+Public-facing copy has also started moving off workspace-first language:
+Onboarded, examples, React, agent, Cloudflare, and CLI help/errors now describe
+artifact projects or project directories while keeping compatibility API and
+protocol names stable.
 
 ### Phase 6: Update React SchemaIde API
 

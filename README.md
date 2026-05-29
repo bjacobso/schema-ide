@@ -48,7 +48,7 @@ The code is split into extractable packages:
 - `@schema-ide/react` — the `<SchemaIde />` React surface, built directly on MUI primitives.
 - `@schema-ide/server` — standalone Effect HTTP server for the OpenRouter proxy.
 - `@schema-ide/cli` — local filesystem CLI for loading artifact project configs and printing diagnostics/routes/JSON Schema.
-- `@schema-ide/onboarded-config` — first-party Onboarded account configuration schema, sample workspace, and embedded CLI bundle.
+- `@schema-ide/onboarded-config` — first-party Onboarded account artifact project, sample files, and embedded CLI bundle.
 - `@schema-ide/examples` — generated JS examples backed by artifact projects plus neutral prompt eval, survey, and workflow files on disk.
 
 ### Who this is for
@@ -207,7 +207,7 @@ pnpm turbo run build:sea --filter @schema-ide/onboarded-config -- \
   --out packages/onboarded-config/dist/sea/onboarded-config
 ```
 
-Run the Onboarded workspace in the local web UI with:
+Run the Onboarded artifact project in the local web UI with:
 
 ```bash
 pnpm playground:build

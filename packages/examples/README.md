@@ -3,16 +3,16 @@
 Neutral fixtures for the Schema IDE playground and package tests.
 Use this package when you need ready-made artifact projects plus JSON/YAML files.
 Examples currently cover prompt evals, survey questions, release workflows, and
-the first-party Onboarded configuration workspace from
+the first-party Onboarded configuration artifact project from
 `@schema-ide/onboarded-config`.
 The exported package has no React, agent, or server dependency. Playground-only
-custom preview renderers are colocated with each workspace package.
+custom preview renderers are colocated with each example package.
 This package is the extraction target for `@schema-ide/examples`.
 
 Local examples are self-contained under `workspaces/<example>/`:
 
 - `example.json` describes the example, artifact project, and compatibility schema
-- `schema-ide.config.ts` lets the CLI validate the workspace from disk
+- `schema-ide.config.ts` lets the CLI validate the artifact project from disk
 - `files/` contains the JSON/YAML files loaded by the UI
 
 The Onboarded example is sourced from
@@ -46,7 +46,7 @@ The package runs generation before `build`, `test`, and `typecheck`.
 
 ## CLI Fixtures
 
-Each example has a matching CLI config, so the same workspaces can be validated
+Each example has a matching CLI config, so the same artifact projects can be validated
 from disk:
 
 ```bash
@@ -59,7 +59,7 @@ schema-ide validate \
 Some examples intentionally contain validation errors so the UI and CLI have
 diagnostics to display.
 
-The Onboarded workspace has its own package-local CLI and bundle script:
+The Onboarded artifact project has its own package-local CLI and bundle script:
 
 ```bash
 pnpm turbo run build:bundle --filter @schema-ide/onboarded-config

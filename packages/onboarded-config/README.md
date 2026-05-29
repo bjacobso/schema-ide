@@ -25,7 +25,7 @@ node packages/onboarded-config/dist/cli.js validate \
   --json
 ```
 
-The same workspace can be loaded by the generic Schema IDE CLI:
+The same artifact project can be loaded by the generic Schema IDE CLI:
 
 ```bash
 schema-ide validate \
@@ -36,7 +36,7 @@ schema-ide validate \
 
 ## Web UI
 
-Build the shared playground UI, then start the Onboarded CLI in local filesystem mode:
+Build the shared playground UI, then start the Onboarded CLI in local filesystem project mode:
 
 ```bash
 pnpm playground:build

@@ -295,7 +295,7 @@ async function runEmbeddedSchemaIdeCli(
     return {
       exitCode: 2,
       stdout: "",
-      stderr: `This CLI embeds its workspace schema and does not accept --schema.\n\n${helpText(
+      stderr: `This CLI embeds its artifact project and does not accept --schema.\n\n${helpText(
         cliOptions,
       )}`,
     };
@@ -340,7 +340,7 @@ async function runEmbeddedSchemaIdeCliMain(
 
   if (options.schemaPath) {
     process.stderr.write(
-      `This CLI embeds its workspace schema and does not accept --schema.\n\n${helpText(
+      `This CLI embeds its artifact project and does not accept --schema.\n\n${helpText(
         cliOptions,
       )}`,
     );
@@ -409,7 +409,7 @@ export async function loadSchemaIdeWorkspaceConfig(
 
   if (!config || typeof config !== "object" || (!("schema" in config) && !("project" in config))) {
     throw new Error(
-      `Schema IDE config must export a workspace or artifact project definition: ${configPath}`,
+      `Schema IDE config must export an artifact project or legacy workspace definition: ${configPath}`,
     );
   }
 
@@ -795,7 +795,7 @@ function formatValidation(reflection: SchemaIdeReflection): string {
 }
 
 function formatDiagnostic(diagnostic: SchemaIdeDiagnostic): string {
-  const path = diagnostic.path ?? diagnostic.documentPath ?? "(workspace)";
+  const path = diagnostic.path ?? diagnostic.documentPath ?? "(project)";
   const location =
     diagnostic.line && diagnostic.column
       ? `${path}:${diagnostic.line}:${diagnostic.column}`
@@ -846,7 +846,7 @@ function helpText(options: SchemaIdeCliOptions): string {
   return `Usage: ${name} <command>${schemaOption} [--dir <path>] [--json]
 
 Commands:
-  serve      Start a local Schema IDE UI for a workspace directory.
+  serve      Start a local Schema IDE UI for a project directory.
   web        Alias for serve.
   validate   Validate a local directory and print diagnostics.
   routes     Print file-to-schema route matches.
@@ -854,7 +854,7 @@ Commands:
   inspect    Print files, summary, diagnostics, routes, and schemas as JSON.
 
 Options:
-  -s, --schema <path>      Consumer workspace config module. Optional when the CLI embeds a workspace.
+  -s, --schema <path>      Artifact project config module. Legacy workspace configs are supported.
   -d, --dir <path>         Directory to validate. Defaults to current directory.
   -p, --port <port>        Port for the serve command. Defaults to 4318.
       --static-dir <path>  Built Schema IDE UI directory to serve at /.
