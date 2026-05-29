@@ -1,5 +1,12 @@
 export { SchemaIde } from "./SchemaIde";
-export type { SchemaIdeProps } from "./SchemaIde";
+export type {
+  SchemaIdeArtifactProjectProps,
+  SchemaIdeArtifactProps,
+  SchemaIdeProjectProps,
+  SchemaIdeProps,
+  SchemaIdeRuntimeProjectProps,
+  SchemaIdeSchemaProps,
+} from "./SchemaIde";
 export { SchemaIdeWorkspaceView } from "./SchemaIdeWorkspaceView";
 export type {
   PreviewDirectoryPreambleProps,
@@ -9,7 +16,16 @@ export type {
   WorkspaceLocation,
 } from "./SchemaIdeWorkspaceView";
 export { SchemaIdePreviewView } from "./SchemaIdePreviewView";
-export { createMemoryWorkspaceClient, createRpcWorkspaceClient } from "./workspace-client";
+export {
+  createArtifactWorkspaceClient,
+  createMemoryWorkspaceClient,
+  createProjectWorkspaceClient,
+  createRpcWorkspaceClient,
+} from "./workspace-client";
+export type {
+  CreateArtifactWorkspaceClientOptions,
+  CreateProjectWorkspaceClientOptions,
+} from "./workspace-client";
 export { createSchemaIdeWorkspaceStore, useSchemaIdeWorkspaceStore } from "./workspace-store";
 export { createSchemaIdeWorkspaceToolRuntime } from "./workspace-tool-runtime";
 export type {
@@ -25,6 +41,7 @@ export type {
   SchemaIdePreviewRegistration,
   SchemaIdePreviewRegistrationForRoutes,
   SchemaIdePreviewResolution,
+  ArtifactProjectPreviewRegistration,
   WorkspacePreviewRegistration,
 } from "./preview";
-export { resolveSchemaIdePreview, WorkspacePreview } from "./preview";
+export { ArtifactProjectPreview, resolveSchemaIdePreview, WorkspacePreview } from "./preview";

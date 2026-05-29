@@ -1,8 +1,13 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Schema } from "effect";
 import {
+  ArtifactProjectEventSchema,
   OpenRouterChatCompletionResponseSchema,
   OpenRouterChatRequestSchema,
+  ArtifactRefSchema,
+  GetArtifactCapabilitiesResponseSchema,
+  ListArtifactRefsResponseSchema,
+  ReadArtifactViewResponseSchema,
   SchemaIdeHttpApi,
   isSchemaIdeWorkspaceError,
   SchemaIdeWorkspaceError,
@@ -11,6 +16,9 @@ import {
   WorkspaceEventSchema,
   WorkspaceRpcErrorSchema,
   WorkspaceSnapshotSchema,
+  getArtifactCapabilitiesFromSnapshot,
+  listArtifactRefsFromSnapshot,
+  readArtifactViewFromSnapshot,
 } from "../src";
 
 describe("schema-ide-protocol", () => {
@@ -96,10 +104,67 @@ describe("schema-ide-protocol", () => {
       "GetCapabilities",
       "GetSnapshot",
       "WatchWorkspace",
+      "WatchArtifactProject",
       "ApplyWorkspaceChange",
       "PreviewWorkspaceFiles",
+      "ListArtifactRefs",
+      "GetArtifactCapabilities",
+      "ReadArtifactView",
+      "ApplyArtifactChange",
     ]);
     expect(error.code).toBe("unsafe-path");
+
+    const artifactEvent = Schema.decodeUnknownSync(ArtifactProjectEventSchema)({
+      type: "error",
+      message: "Project watch failed",
+    });
+    expect(artifactEvent.type).toBe("error");
+  });
+
+  it("decodes and derives artifact protocol payloads from snapshots", () => {
+    const ref = Schema.decodeUnknownSync(ArtifactRefSchema)({
+      _tag: "WorkspaceFile",
+      path: "workflows/onboarding.json",
+    });
+    const snapshot = Schema.decodeUnknownSync(WorkspaceSnapshotSchema)({
+      revision: 1,
+      files: [{ path: "workflows/onboarding.json", content: '{"id":"onboarding"}\n' }],
+      reflection: {
+        mode: "workspace",
+        activeFile: "workflows/onboarding.json",
+        activeFormat: "json",
+        files: [{ path: "workflows/onboarding.json", content: '{"id":"onboarding"}\n' }],
+        schemas: [{ id: "Workflows", match: "workflows/*.json", jsonSchema: { type: "object" } }],
+        activeJsonSchema: { type: "object" },
+        decodedValue: null,
+        diagnostics: [],
+        validationSummary: { valid: true, errorCount: 0, warningCount: 0, infoCount: 0 },
+        routeMatches: [
+          { path: "workflows/onboarding.json", schemaId: "Workflows", format: "json" },
+        ],
+      },
+    });
+
+    const refs = Schema.decodeUnknownSync(ListArtifactRefsResponseSchema)(
+      listArtifactRefsFromSnapshot(snapshot),
+    );
+    const capabilities = Schema.decodeUnknownSync(GetArtifactCapabilitiesResponseSchema)(
+      getArtifactCapabilitiesFromSnapshot({ snapshot, ref }),
+    );
+    const view = Schema.decodeUnknownSync(ReadArtifactViewResponseSchema)(
+      readArtifactViewFromSnapshot({ snapshot, ref, view: "sourceText" }),
+    );
+
+    expect(refs.artifacts).toEqual([
+      { _tag: "Workspace" },
+      { _tag: "WorkspaceFile", path: "workflows/onboarding.json" },
+    ]);
+    expect(capabilities.capabilities.map((capability) => capability.view)).toEqual([
+      "sourceText",
+      "jsonSchema",
+      "diagnostics",
+    ]);
+    expect(view.value).toBe('{"id":"onboarding"}\n');
   });
 
   it("tags workspace errors for Effect error matching", () => {

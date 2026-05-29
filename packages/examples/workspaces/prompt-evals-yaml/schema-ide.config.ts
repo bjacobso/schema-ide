@@ -1,9 +1,9 @@
-import { defineSchemaIdeWorkspace } from "@schema-ide/cli";
-import { PromptEvalWorkspaceSchema } from "../../src/schemas";
+import { defineSchemaIdeProject } from "@schema-ide/cli";
+import { PromptEvalArtifactProject } from "../../src/schemas";
 
-export default defineSchemaIdeWorkspace({
+export default defineSchemaIdeProject({
   id: "prompt-evals-yaml",
-  schema: PromptEvalWorkspaceSchema,
+  project: PromptEvalArtifactProject,
   defaultFormat: "yaml",
   include: ["**/*.yaml"],
 });

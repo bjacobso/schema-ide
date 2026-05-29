@@ -1,9 +1,9 @@
-import { defineSchemaIdeWorkspace } from "@schema-ide/cli";
-import { WorkflowWorkspaceSchema } from "../../src/schemas";
+import { defineSchemaIdeProject } from "@schema-ide/cli";
+import { WorkflowArtifactProject } from "../../src/schemas";
 
-export default defineSchemaIdeWorkspace({
+export default defineSchemaIdeProject({
   id: "workflow-json",
-  schema: WorkflowWorkspaceSchema,
+  project: WorkflowArtifactProject,
   defaultFormat: "json",
   include: ["**/*.json"],
 });

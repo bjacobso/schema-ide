@@ -1,11 +1,26 @@
 # @schema-ide/onboarded-config
 
-First-party Onboarded account configuration workspace for Schema IDE.
+First-party Onboarded account configuration artifact project for Schema IDE.
 
-This package owns the Onboarded domain schemas, a YAML sample workspace, and an
+This package owns the Onboarded domain schemas, a YAML sample project, and an
 embedded `onboarded-config` CLI. It is intentionally packaged like a consumer of
-Schema IDE: the package imports `@schema-ide/cli`, embeds its workspace schema,
+Schema IDE: the package imports `@schema-ide/cli`, embeds its artifact project,
 and can bundle the result with the web UI.
+
+The sample also includes
+`workspaces/onboarded-account-yaml/artifact-project.yaml`, a serializable
+artifact-project declaration for the same routes and schema-algebra views. The
+sample `schema-ide.config.ts` reads that YAML as its route/config source of
+truth. The TypeScript runtime can parse the same file with
+`parseOnboardedArtifactProjectConfig`, serialize the executable project shape
+back with `serializeOnboardedArtifactProjectConfig`, and create an
+artifact-backed runtime with `createOnboardedArtifactRuntimeFromProjectConfig`.
+The Onboarded-specific schema is also validated against
+`ArtifactProjectConfigSchema`, so package-specific YAML remains compatible with
+the generic artifact project contract.
+The YAML route declarations also include compatibility projection modes such as
+`file` and `values`, so the derived workspace schema no longer needs a separate
+TypeScript-only route mode table.
 
 ## Validate
 
@@ -16,7 +31,7 @@ node packages/onboarded-config/dist/cli.js validate \
   --json
 ```
 
-The same workspace can be loaded by the generic Schema IDE CLI:
+The same artifact project can be loaded by the generic Schema IDE CLI:
 
 ```bash
 schema-ide validate \
@@ -27,7 +42,7 @@ schema-ide validate \
 
 ## Web UI
 
-Build the shared playground UI, then start the Onboarded CLI in local filesystem mode:
+Build the shared playground UI, then start the Onboarded CLI in local filesystem project mode:
 
 ```bash
 pnpm playground:build
@@ -42,7 +57,7 @@ exists; pass `--static-dir <path>` to use another built UI bundle.
 ## Bundle
 
 `build:bundle` is wired through Turbo to build the package and the playground UI
-first. The resulting CommonJS entry embeds the Onboarded workspace schema and the
+first. The resulting CommonJS entry embeds the Onboarded artifact project and the
 web UI assets, so it can serve `/` without `apps/playground/dist` on disk.
 
 ```bash

@@ -1,9 +1,9 @@
-import { defineSchemaIdeWorkspace } from "@schema-ide/cli";
-import { SurveyWorkspaceSchema } from "../../src/schemas";
+import { defineSchemaIdeProject } from "@schema-ide/cli";
+import { SurveyArtifactProject } from "../../src/schemas";
 
-export default defineSchemaIdeWorkspace({
+export default defineSchemaIdeProject({
   id: "survey-yaml",
-  schema: SurveyWorkspaceSchema,
+  project: SurveyArtifactProject,
   defaultFormat: "yaml",
   include: ["**/*.yaml", "**/*.pdf"],
 });

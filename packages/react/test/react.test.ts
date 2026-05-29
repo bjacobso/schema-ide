@@ -1,25 +1,37 @@
 import { describe, expect, expectTypeOf, it } from "@effect/vitest";
 import { Effect, Fiber, Schema, Stream } from "effect";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { schemaIdeExamples } from "@schema-ide/examples";
 import {
   createSchemaIdeWorkspaceStore,
   createSchemaIdeWorkspaceToolRuntime,
   diagnosticsForSchemaIdeFile,
+  createArtifactWorkspaceClient,
   createMemoryWorkspaceClient,
+  createProjectWorkspaceClient,
   getSchemaIdeFileDiagnosticCounts,
   resolveSchemaIdePreview,
   SchemaIde,
+  ArtifactProjectPreview,
   WorkspacePreview,
+  type SchemaIdeProps,
   type SchemaIdePreviewComponentProps,
   type SchemaIdePreviewRegistration,
   type SchemaIdePreviewRegistrationForRoutes,
+  type SchemaIdeWorkspaceViewProps,
 } from "../src";
 import { pdfContentToDataUrl } from "../src/SchemaIdePdfFileViewer";
 import {
+  SchemaIdeWorkspaceFileArtifact,
   Workspace,
+  createSchemaIdeArtifactRuntime,
   type SchemaIdeInputSchema,
   type SchemaIdeReflection,
   type WorkspaceRoutes,
 } from "@schema-ide/core";
+import { ArtifactProject, type AnyArtifactType } from "@schema-ide/artifacts";
+import type { SchemaIdeWorkspaceService } from "@schema-ide/protocol";
 import { defineWorkspaceClientContract } from "../../protocol/test/workspace-client-contract";
 
 describe("schema-ide-react", () => {
@@ -42,6 +54,19 @@ describe("schema-ide-react", () => {
     expect(resolution?.schemaId).toBe("Workflows");
     expect(resolution?.selected.id).toBe("workflow-graph");
     expect(resolution?.jsonSchema).toEqual({ type: "object", title: "Workflow" });
+  });
+
+  it("resolves previews with artifact JSON Schema overrides", () => {
+    const resolution = resolveSchemaIdePreview({
+      previews: [makePreview("workflow-graph", "Workflows", "Workflow")],
+      reflection: makeReflection(),
+      file: { path: "workflows/onboarding.json", content: "{}" },
+      jsonSchemaByPath: {
+        "workflows/onboarding.json": { type: "object", title: "Artifact Workflow" },
+      },
+    });
+
+    expect(resolution?.jsonSchema).toEqual({ type: "object", title: "Artifact Workflow" });
   });
 
   it("honors a selected preview when multiple previews match", () => {
@@ -177,6 +202,163 @@ describe("schema-ide-react", () => {
     expectTypeOf(WorkspaceSchema).toMatchTypeOf<SchemaIdeInputSchema<unknown, Routes>>();
   });
 
+  it("types preview registrations from artifact project route ids", () => {
+    const WorkflowSchema = Schema.Struct({
+      id: Schema.String,
+      actionIds: Schema.Array(Schema.String),
+    });
+    type Workflow = typeof WorkflowSchema.Type;
+
+    const project = ArtifactProject.make("workflow").files("workflows/*.json", {
+      id: "Workflows",
+      type: SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+      schema: WorkflowSchema,
+    });
+    const WorkflowPreview = (_props: SchemaIdePreviewComponentProps<Workflow, "Workflows">) => null;
+
+    const previews = ArtifactProjectPreview.make(project, [
+      {
+        id: "artifact-workflow-preview",
+        schemaId: "Workflows",
+        label: "Workflow",
+        component: WorkflowPreview,
+      },
+    ]);
+
+    expectTypeOf(previews[0]!.component).parameter(0).toMatchTypeOf<{
+      readonly value: Workflow | null;
+      readonly schemaId: "Workflows";
+      readonly onChange: (content: string) => void;
+    }>();
+  });
+
+  it("types the top-level SchemaIde component with schema or artifact input", () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const artifacts = createSchemaIdeArtifactRuntime({
+      schema: DocumentSchema,
+      files: [{ path: "document.json", content: '{"id":"initial"}\n' }],
+      activeFile: "document.json",
+      activeFormat: "json",
+    });
+    const project = ArtifactProject.make("documents").files("documents/*.json", {
+      id: "documents",
+      type: SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+      schema: DocumentSchema,
+    });
+
+    expectTypeOf({ schema: DocumentSchema }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ project: artifacts }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({
+      project,
+      schema: DocumentSchema,
+      initialFiles: [{ path: "documents/initial.json", content: '{"id":"initial"}\n' }],
+    }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({
+      project,
+      initialFiles: [{ path: "documents/initial.json", content: '{"id":"initial"}\n' }],
+    }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ artifacts }).toMatchTypeOf<SchemaIdeProps>();
+    expectTypeOf({ project: artifacts }).toMatchTypeOf<SchemaIdeWorkspaceViewProps>();
+  });
+
+  it("project workspace client runs from an artifact project declaration", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const project = ArtifactProject.make("documents").files("documents/*.json", {
+      id: "documents",
+      type: SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+      schema: DocumentSchema,
+    });
+    const client = createProjectWorkspaceClient({
+      project,
+      schema: DocumentSchema,
+      initialFiles: [{ path: "documents/initial.json", content: '{"id":"initial"}\n' }],
+    });
+    const ref = { _tag: "WorkspaceFile" as const, path: "documents/initial.json" };
+
+    const snapshot = await Effect.runPromise(client.getSnapshot);
+    const capabilities = await Effect.runPromise(client.getArtifactCapabilities({ ref }));
+
+    expect(snapshot.reflection.validationSummary.valid).toBe(true);
+    expect(capabilities.capabilities.map((capability) => capability.view)).toEqual(
+      expect.arrayContaining([
+        "sourceText",
+        "parsedValue",
+        "jsonSchema",
+        "diagnostics",
+        "decodedValue",
+      ]),
+    );
+    await expect(
+      Effect.runPromise(client.readArtifactView({ ref, view: "decodedValue" })),
+    ).resolves.toMatchObject({
+      value: { id: "initial" },
+    });
+  });
+
+  it("project workspace client runs from an artifact project declaration alone", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const project = ArtifactProject.make("documents").files("documents/*.json", {
+      id: "documents",
+      type: SchemaIdeWorkspaceFileArtifact as unknown as AnyArtifactType,
+      schema: DocumentSchema,
+      metadata: {
+        attributes: {
+          schemaId: "Documents",
+          workspaceField: "documents",
+          indexBy: "id",
+        },
+      },
+    });
+    const client = createProjectWorkspaceClient({
+      project,
+      initialFiles: [{ path: "documents/initial.json", content: '{"id":"initial"}\n' }],
+    });
+
+    const snapshot = await Effect.runPromise(client.getSnapshot);
+    const emptyProject = createProjectWorkspaceClient({ project });
+    const emptySnapshot = await Effect.runPromise(emptyProject.getSnapshot);
+
+    expect(snapshot.files.map((file) => file.path)).toEqual(["documents/initial.json"]);
+    expect(snapshot.reflection.validationSummary.valid).toBe(true);
+    expect(snapshot.reflection.schemas.map((schema) => schema.id)).toEqual(["Documents"]);
+    expect(snapshot.reflection.decodedValue).toEqual({
+      documents: new Map([["initial", { id: "initial" }]]),
+    });
+    expect(emptySnapshot.files).toEqual([]);
+  });
+
+  it("renders a real example from an artifact project without a workspace schema", async () => {
+    const example = schemaIdeExamples.find((candidate) => candidate.id === "workflow-json");
+    expect(example).toBeDefined();
+
+    const client = createProjectWorkspaceClient({
+      project: example!.project,
+      initialFiles: example!.files,
+      defaultFormat: example!.defaultFormat ?? "json",
+      title: example!.name,
+    });
+    const snapshot = await Effect.runPromise(client.getSnapshot);
+
+    expect(snapshot.files.map((file) => file.path)).toEqual(
+      example!.files.map((file) => file.path),
+    );
+    expect(snapshot.reflection.routeMatches.length).toBeGreaterThan(0);
+    expect(snapshot.reflection.schemas.map((schema) => schema.id)).toEqual(
+      expect.arrayContaining(["Actions", "Workflows"]),
+    );
+    expect(() =>
+      renderToString(
+        createElement(SchemaIde, {
+          project: example!.project,
+          initialFiles: example!.files,
+          defaultFormat: example!.defaultFormat ?? "json",
+          title: example!.name,
+          showDebug: false,
+        }),
+      ),
+    ).not.toThrow();
+  });
+
   it("memory workspace client exposes snapshots, writes, and watch events", async () => {
     const DocumentSchema = Schema.Struct({ id: Schema.String });
     const client = createMemoryWorkspaceClient({
@@ -185,7 +367,7 @@ describe("schema-ide-react", () => {
     });
     const watchEvents: string[] = [];
     const fiber = Effect.runFork(
-      client.watchWorkspace.pipe(
+      client.watchArtifactProject.pipe(
         Stream.runForEach((event) =>
           Effect.sync(() => {
             if (event.type === "snapshot") {
@@ -217,6 +399,64 @@ describe("schema-ide-react", () => {
     } finally {
       await Effect.runPromise(Fiber.interrupt(fiber));
     }
+  });
+
+  it("memory workspace client serves artifact runtime views", async () => {
+    const ActionSchema = Schema.Struct({
+      id: Schema.String,
+      label: Schema.String,
+    });
+    const WorkspaceSchema = Workspace.Struct({
+      actions: Workspace.files("actions/*.json", ActionSchema),
+    });
+    const client = createMemoryWorkspaceClient({
+      schema: WorkspaceSchema,
+      initialFiles: [{ path: "actions/email.json", content: '{"id":"email","label":"Email"}\n' }],
+    });
+    const ref = { _tag: "WorkspaceFile" as const, path: "actions/email.json" };
+
+    const capabilities = await Effect.runPromise(client.getArtifactCapabilities({ ref }));
+    expect(capabilities.capabilities.map((capability) => capability.view)).toEqual(
+      expect.arrayContaining([
+        "sourceText",
+        "parsedValue",
+        "jsonSchema",
+        "diagnostics",
+        "decodedValue",
+      ]),
+    );
+
+    await expect(
+      Effect.runPromise(client.readArtifactView({ ref, view: "decodedValue" })),
+    ).resolves.toMatchObject({
+      value: {
+        id: "email",
+        label: "Email",
+      },
+    });
+  });
+
+  it("memory workspace client snapshots mirror the artifact reflection view", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [{ path: "document.json", content: '{"id":"artifact"}\n' }],
+    });
+
+    const snapshot = await Effect.runPromise(client.getSnapshot);
+    const artifactReflection = await Effect.runPromise(
+      client.readArtifactView({ ref: { _tag: "Workspace" }, view: "reflection" }),
+    );
+    const preview = await Effect.runPromise(
+      client.previewFiles({
+        files: [{ path: "document.json", content: '{"id":1}\n' }],
+        activeFile: "document.json",
+      }),
+    );
+
+    expect(artifactReflection.value).toEqual(snapshot.reflection);
+    expect(preview.reflection.validationSummary.valid).toBe(false);
+    expect(preview.reflection.diagnostics[0]?.path).toBe("document.json");
   });
 
   it("workspace store syncs client snapshots and drafts through the AtomRef graph", async () => {
@@ -260,6 +500,201 @@ describe("schema-ide-react", () => {
     } finally {
       unsubscribe();
       unsubscribeDirty();
+      store.stop();
+    }
+  });
+
+  it("workspace store hydrates committed files from artifact source views", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [{ path: "document.json", content: '{"id":"artifact"}\n' }],
+    });
+    const artifactFirstClient: SchemaIdeWorkspaceService = {
+      ...client,
+      getSnapshot: client.getSnapshot.pipe(
+        Effect.map((snapshot) => ({
+          ...snapshot,
+          files: snapshot.files.map((file) => ({ ...file, content: '{"id":"snapshot"}\n' })),
+          reflection: {
+            ...snapshot.reflection,
+            files: snapshot.reflection.files.map((file) => ({
+              ...file,
+              content: '{"id":"snapshot"}\n',
+            })),
+            schemas: snapshot.reflection.schemas.map((schema) => ({
+              ...schema,
+              jsonSchema: { type: "object", title: "Snapshot Document" },
+            })),
+            diagnostics: [
+              {
+                path: "document.json",
+                severity: "error" as const,
+                source: "workspace" as const,
+                message: "stale snapshot reflection",
+              },
+            ],
+            validationSummary: {
+              valid: false,
+              errorCount: 1,
+              warningCount: 0,
+              infoCount: 0,
+            },
+          },
+        })),
+      ),
+    };
+    const store = createSchemaIdeWorkspaceStore(artifactFirstClient);
+
+    try {
+      await Effect.runPromise(store.refreshSnapshot);
+
+      expect(store.stateRef.value.snapshot?.files[0]?.content).toBe('{"id":"snapshot"}\n');
+      expect(store.stateRef.value.snapshot?.reflection.validationSummary.valid).toBe(false);
+      expect(store.artifactRefsRef.value).toEqual([
+        { _tag: "Workspace" },
+        { _tag: "WorkspaceFile", path: "document.json" },
+      ]);
+      expect(store.committedFilesRef.value[0]?.content).toBe('{"id":"artifact"}\n');
+      expect(store.filesRef.value[0]?.content).toBe('{"id":"artifact"}\n');
+      expect(store.artifactReflectionRef.value?.validationSummary.valid).toBe(true);
+      expect(store.reflectionRef.value?.validationSummary.valid).toBe(true);
+      expect(store.stateRef.value.reflection?.files[0]?.content).toBe('{"id":"artifact"}\n');
+      expect(
+        Object.prototype.hasOwnProperty.call(store.artifactJsonSchemasRef.value, "document.json"),
+      ).toBe(true);
+      expect(store.artifactJsonSchemasRef.value["document.json"]).not.toEqual({
+        type: "object",
+        title: "Snapshot Document",
+      });
+    } finally {
+      store.stop();
+    }
+  });
+
+  it("workspace store reads source, diagnostics, schemas, and reflection from artifact views", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [{ path: "document.json", content: '{"id":"artifact"}\n' }],
+    });
+    const staleDiagnostic = {
+      path: "document.json",
+      severity: "error" as const,
+      source: "workspace" as const,
+      message: "stale snapshot diagnostic",
+    };
+    const artifactReads: string[] = [];
+    const artifactFirstClient: SchemaIdeWorkspaceService = {
+      ...client,
+      getSnapshot: client.getSnapshot.pipe(
+        Effect.map((snapshot) => ({
+          ...snapshot,
+          files: snapshot.files.map((file) => ({ ...file, content: '{"id":"snapshot"}\n' })),
+          reflection: {
+            ...snapshot.reflection,
+            files: snapshot.reflection.files.map((file) => ({
+              ...file,
+              content: '{"id":"snapshot"}\n',
+            })),
+            schemas: snapshot.reflection.schemas.map((schema) => ({
+              ...schema,
+              jsonSchema: { type: "object", title: "Snapshot Document" },
+            })),
+            diagnostics: [staleDiagnostic],
+            validationSummary: {
+              valid: false,
+              errorCount: 1,
+              warningCount: 0,
+              infoCount: 0,
+            },
+          },
+        })),
+      ),
+      readArtifactView: (request) => {
+        artifactReads.push(
+          request.ref._tag === "WorkspaceFile"
+            ? `${request.ref.path}:${request.view}`
+            : `workspace:${request.view}`,
+        );
+        return client.readArtifactView(request);
+      },
+    };
+    const store = createSchemaIdeWorkspaceStore(artifactFirstClient);
+
+    try {
+      await Effect.runPromise(store.refreshSnapshot);
+
+      expect(artifactReads).toEqual([
+        "workspace:reflection",
+        "workspace:diagnostics",
+        "document.json:sourceText",
+        "document.json:jsonSchema",
+      ]);
+      expect(store.committedFilesRef.value[0]?.content).toBe('{"id":"artifact"}\n');
+      expect(store.reflectionRef.value?.validationSummary.valid).toBe(true);
+      expect(store.diagnosticsRef.value).toEqual([]);
+      expect(store.artifactJsonSchemasRef.value["document.json"]).not.toEqual({
+        type: "object",
+        title: "Snapshot Document",
+      });
+    } finally {
+      store.stop();
+    }
+  });
+
+  it("workspace store hydrates diagnostics from artifact diagnostics views", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [{ path: "document.json", content: '{"id":"artifact"}\n' }],
+    });
+    const staleDiagnostic = {
+      path: "document.json",
+      severity: "error" as const,
+      source: "workspace" as const,
+      message: "stale reflection diagnostic",
+    };
+    const staleReflectionClient: SchemaIdeWorkspaceService = {
+      ...client,
+      getSnapshot: client.getSnapshot.pipe(
+        Effect.map((snapshot) => ({
+          ...snapshot,
+          reflection: {
+            ...snapshot.reflection,
+            diagnostics: [staleDiagnostic],
+            validationSummary: {
+              valid: false,
+              errorCount: 1,
+              warningCount: 0,
+              infoCount: 0,
+            },
+          },
+        })),
+      ),
+      readArtifactView: (request) => {
+        if (request.ref._tag === "Workspace" && request.view === "reflection") {
+          return staleReflectionClient.getSnapshot.pipe(
+            Effect.map((snapshot) => ({
+              ref: request.ref,
+              view: request.view,
+              value: snapshot.reflection,
+            })),
+          );
+        }
+        return client.readArtifactView(request);
+      },
+    };
+    const store = createSchemaIdeWorkspaceStore(staleReflectionClient);
+
+    try {
+      await Effect.runPromise(store.refreshSnapshot);
+
+      expect(store.reflectionRef.value?.diagnostics).toEqual([staleDiagnostic]);
+      expect(store.artifactDiagnosticsRef.value).toEqual([]);
+      expect(store.diagnosticsRef.value).toEqual([]);
+      expect(store.stateRef.value.diagnostics).toEqual([]);
+    } finally {
       store.stop();
     }
   });
@@ -485,6 +920,22 @@ defineWorkspaceClientContract({
       schema: Schema.Struct({ id: Schema.String }),
       initialFiles: [{ path: "document.json", content: '{"id":"initial"}\n' }],
     }),
+  }),
+  existingPath: "document.json",
+  updatedContent: '{"id":"updated"}\n',
+});
+
+defineWorkspaceClientContract({
+  name: "artifact workspace client",
+  createSubject: Effect.succeed({
+    workspace: createArtifactWorkspaceClient(
+      createSchemaIdeArtifactRuntime({
+        schema: Schema.Struct({ id: Schema.String }),
+        files: [{ path: "document.json", content: '{"id":"initial"}\n' }],
+        activeFile: "document.json",
+        activeFormat: "json",
+      }),
+    ),
   }),
   existingPath: "document.json",
   updatedContent: '{"id":"updated"}\n',
