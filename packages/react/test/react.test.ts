@@ -398,6 +398,29 @@ describe("schema-ide-react", () => {
     });
   });
 
+  it("memory workspace client snapshots mirror the artifact reflection view", async () => {
+    const DocumentSchema = Schema.Struct({ id: Schema.String });
+    const client = createMemoryWorkspaceClient({
+      schema: DocumentSchema,
+      initialFiles: [{ path: "document.json", content: '{"id":"artifact"}\n' }],
+    });
+
+    const snapshot = await Effect.runPromise(client.getSnapshot);
+    const artifactReflection = await Effect.runPromise(
+      client.readArtifactView({ ref: { _tag: "Workspace" }, view: "reflection" }),
+    );
+    const preview = await Effect.runPromise(
+      client.previewFiles({
+        files: [{ path: "document.json", content: '{"id":1}\n' }],
+        activeFile: "document.json",
+      }),
+    );
+
+    expect(artifactReflection.value).toEqual(snapshot.reflection);
+    expect(preview.reflection.validationSummary.valid).toBe(false);
+    expect(preview.reflection.diagnostics[0]?.path).toBe("document.json");
+  });
+
   it("workspace store syncs client snapshots and drafts through the AtomRef graph", async () => {
     const DocumentSchema = Schema.Struct({ id: Schema.String });
     const client = createMemoryWorkspaceClient({

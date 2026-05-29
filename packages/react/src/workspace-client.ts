@@ -1,9 +1,10 @@
 import {
   applyWorkspaceChange,
+  codecForPath,
   createSchemaIdeArtifactRuntime,
   createWorkspaceFromArtifactProject,
-  createReflection,
   createVersionedWorkspace,
+  stringifyDocument,
   type SchemaIdeArtifactRuntime,
   type SchemaIdeDocumentFormat,
   type SchemaIdeInputSchema,
@@ -24,7 +25,6 @@ import {
   type WorkspacePreviewResponse,
   type WorkspaceSnapshot,
 } from "@schema-ide/protocol";
-import { codecForPath, stringifyDocument, validateSchemaIdeValue } from "@schema-ide/core";
 import {
   ArtifactRef,
   type ArtifactProjectDeclaration,
@@ -112,49 +112,63 @@ export function createMemoryWorkspaceClient<
     },
   };
 
-  const snapshot = (): WorkspaceSnapshot =>
-    makeMemorySnapshot({
-      schema,
-      workspace,
-      revision,
-      defaultFormat,
-    });
-  const artifactRuntime = (activeFile?: string | null | undefined) => {
-    const current = makeMemorySnapshot({
-      schema,
-      workspace,
-      revision,
-      defaultFormat,
-      activeFile,
-    });
+  const artifactRuntime = (
+    targetWorkspace: VersionedWorkspaceState = workspace,
+    activeFile?: string | null | undefined,
+  ) => {
+    const selection = selectMemoryActiveFile(targetWorkspace, defaultFormat, activeFile);
     return createSchemaIdeArtifactRuntime({
       schema,
-      files: workspace.files,
-      activeFile: current.reflection.activeFile,
-      activeFormat: current.reflection.activeFormat,
+      files: targetWorkspace.files,
+      activeFile: selection.activeFile,
+      activeFormat: selection.activeFormat,
       ...(artifactProject ? { project: artifactProject } : {}),
     });
   };
-  const previewFiles = (request: WorkspacePreviewRequest): WorkspacePreviewResponse => ({
-    reflection: makeMemorySnapshot({
-      schema,
-      workspace: createVersionedWorkspace(request.files),
-      revision,
-      defaultFormat,
-      activeFile: request.activeFile,
-    }).reflection,
-  });
+
+  const snapshot = (): Effect.Effect<WorkspaceSnapshot, SchemaIdeWorkspaceError> =>
+    Effect.gen(function* () {
+      const runtime = artifactRuntime();
+      const reflection = yield* runtime.reflection.pipe(Effect.mapError(toWorkspaceError));
+      return { revision, files: workspace.files, reflection };
+    });
+
+  const previewFiles = (
+    request: WorkspacePreviewRequest,
+  ): Effect.Effect<WorkspacePreviewResponse, SchemaIdeWorkspaceError> =>
+    Effect.gen(function* () {
+      const reflection = yield* artifactRuntime(
+        createVersionedWorkspace(request.files),
+        request.activeFile,
+      ).reflection.pipe(Effect.mapError(toWorkspaceError));
+      return { reflection };
+    });
+
   const publish = () => {
-    const event: WorkspaceEvent = { type: "snapshot", snapshot: snapshot() };
-    for (const subscriber of subscribers) subscriber(event);
+    Effect.runFork(
+      snapshot().pipe(
+        Effect.tap((next) =>
+          Effect.sync(() => {
+            const event: WorkspaceEvent = { type: "snapshot", snapshot: next };
+            for (const subscriber of subscribers) subscriber(event);
+          }),
+        ),
+        Effect.catch((error) =>
+          Effect.sync(() => {
+            const event: WorkspaceEvent = { type: "error", message: error.message };
+            for (const subscriber of subscribers) subscriber(event);
+          }),
+        ),
+      ),
+    );
   };
   const watchWorkspace = Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
     Effect.acquireRelease(
-      Effect.sync(() => {
+      Effect.gen(function* () {
         const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
         subscribers.add(subscriber);
         Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
-        Queue.offerUnsafe(queue, { type: "snapshot", snapshot: snapshot() });
+        Queue.offerUnsafe(queue, { type: "snapshot", snapshot: yield* snapshot() });
         return subscriber;
       }),
       (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
@@ -163,31 +177,34 @@ export function createMemoryWorkspaceClient<
 
   return {
     getCapabilities: Effect.succeed(capabilities),
-    getSnapshot: Effect.sync(snapshot),
+    getSnapshot: snapshot(),
     watchWorkspace,
     watchArtifactProject: watchWorkspace,
     applyChange: (change) =>
-      Effect.try({
-        try: () => {
-          if (readOnly) {
-            throw new SchemaIdeWorkspaceError("Workspace is read-only.", "read-only");
-          }
-          const before = workspace.files;
-          workspace = applyWorkspaceChange(workspace, change, {
-            actor: "user",
-            label: workspaceChangeLabel(change),
-          });
-          revision += 1;
-          publish();
-          return {
-            revision,
-            changedPaths: changedPathsForChange(change, before),
-            validationSummary: snapshot().reflection.validationSummary,
-          };
-        },
-        catch: toWorkspaceError,
+      Effect.gen(function* () {
+        const before = workspace.files;
+        yield* Effect.try({
+          try: () => {
+            if (readOnly) {
+              throw new SchemaIdeWorkspaceError("Workspace is read-only.", "read-only");
+            }
+            workspace = applyWorkspaceChange(workspace, change, {
+              actor: "user",
+              label: workspaceChangeLabel(change),
+            });
+            revision += 1;
+          },
+          catch: toWorkspaceError,
+        });
+        const next = yield* snapshot();
+        publish();
+        return {
+          revision,
+          changedPaths: changedPathsForChange(change, before),
+          validationSummary: next.reflection.validationSummary,
+        };
       }),
-    previewFiles: (request) => Effect.sync(() => previewFiles(request)),
+    previewFiles,
     listArtifactRefs: Effect.gen(function* () {
       const runtime = artifactRuntime();
       const refs = yield* runtime.store.list.pipe(Effect.mapError(toWorkspaceError));
@@ -216,26 +233,33 @@ export function createMemoryWorkspaceClient<
       }),
     applyArtifactChange: (change) =>
       Effect.flatMap(Effect.succeed(artifactChangeToWorkspaceChange(change)), (workspaceChange) => {
+        const before = workspace.files;
         return Effect.try({
           try: () => {
             if (readOnly) {
               throw new SchemaIdeWorkspaceError("Workspace is read-only.", "read-only");
             }
-            const before = workspace.files;
             workspace = applyWorkspaceChange(workspace, workspaceChange, {
               actor: "user",
               label: workspaceChangeLabel(workspaceChange),
             });
             revision += 1;
-            publish();
-            return {
-              revision,
-              changedPaths: changedPathsForChange(workspaceChange, before),
-              validationSummary: snapshot().reflection.validationSummary,
-            };
           },
           catch: toWorkspaceError,
-        });
+        }).pipe(
+          Effect.flatMap(() =>
+            snapshot().pipe(
+              Effect.map((next) => {
+                publish();
+                return {
+                  revision,
+                  changedPaths: changedPathsForChange(workspaceChange, before),
+                  validationSummary: next.reflection.validationSummary,
+                };
+              }),
+            ),
+          ),
+        );
       }),
   };
 }
@@ -520,40 +544,21 @@ export function createRpcWorkspaceClient(
   };
 }
 
-function makeMemorySnapshot<A, Routes extends WorkspaceRouteMap>({
-  schema,
-  workspace,
-  revision,
-  defaultFormat,
-  activeFile: requestedActiveFile,
-}: {
-  readonly schema: SchemaIdeInputSchema<A, Routes>;
-  readonly workspace: VersionedWorkspaceState;
-  readonly revision: number;
-  readonly defaultFormat: SchemaIdeDocumentFormat;
-  readonly activeFile?: string | null | undefined;
-}): WorkspaceSnapshot {
+function selectMemoryActiveFile(
+  workspace: VersionedWorkspaceState,
+  defaultFormat: SchemaIdeDocumentFormat,
+  requestedActiveFile?: string | null | undefined,
+): {
+  readonly activeFile: string | null;
+  readonly activeFormat: SchemaIdeDocumentFormat;
+} {
   const activeFile: string | null =
     requestedActiveFile && workspace.files.some((file) => file.path === requestedActiveFile)
       ? requestedActiveFile
       : (workspace.files[0]?.path ?? null);
-  const activeFormat = activeFile ? codecForPath(activeFile, defaultFormat).format : defaultFormat;
-  const validation = validateSchemaIdeValue({
-    schema,
-    files: workspace.files,
-    activeFile,
-    activeFormat,
-  });
   return {
-    revision,
-    files: workspace.files,
-    reflection: createReflection({
-      schema,
-      files: workspace.files,
-      activeFile,
-      activeFormat,
-      validation,
-    }),
+    activeFile,
+    activeFormat: activeFile ? codecForPath(activeFile, defaultFormat).format : defaultFormat,
   };
 }
 

@@ -953,7 +953,10 @@ Diagnostics now have the same explicit artifact path: the React store hydrates
 the workspace `diagnostics` view, exposes a diagnostics ref on the view model,
 and routes file tree counts, editor markers, preview diagnostics, debug output,
 and the tool runtime through that artifact diagnostics state with reflection as
-the fallback.
+the fallback. React's in-memory workspace client now also builds its
+compatibility snapshots and preview responses from the artifact runtime's
+`reflection` view, so both artifact-project clients and legacy schema clients
+share the same reflection materialization path inside React.
 
 ### Phase 7: Update Agent Tools
 
