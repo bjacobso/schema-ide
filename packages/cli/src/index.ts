@@ -11,6 +11,7 @@ import {
   formatForPath,
   isWorkspaceSchema,
   validateSchemaIdeValue,
+  type AnySchema,
   type ReflectedSchema,
   type SchemaIdeDocumentFormat,
   type SchemaIdeDiagnostic,
@@ -63,6 +64,9 @@ export interface SchemaIdeCliWorkspace<
   readonly id?: string | undefined;
   readonly schema: SchemaIdeInputSchema<A, Routes>;
   readonly artifactProject?: SchemaIdeCliArtifactProject | undefined;
+  readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
+  readonly relationSchema?: AnySchema | undefined;
+  readonly relationValue?: ((value: any) => unknown) | undefined;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly include?: readonly string[] | undefined;
   readonly exclude?: readonly string[] | undefined;
@@ -75,6 +79,9 @@ export interface SchemaIdeCliProject<
   readonly id?: string | undefined;
   readonly project: ArtifactProjectDeclaration<string, any, any>;
   readonly schema?: SchemaIdeInputSchema<A, Routes> | undefined;
+  readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
+  readonly relationSchema?: AnySchema | undefined;
+  readonly relationValue?: ((value: any) => unknown) | undefined;
   readonly defaultFormat?: SchemaIdeDocumentFormat | undefined;
   readonly include?: readonly string[] | undefined;
   readonly exclude?: readonly string[] | undefined;
@@ -606,6 +613,9 @@ function projectConfigToWorkspace<A, Routes extends WorkspaceRouteMap = Workspac
   id,
   project,
   schema,
+  relationInputSchema,
+  relationSchema,
+  relationValue,
   defaultFormat,
   include,
   exclude,
@@ -616,6 +626,9 @@ function projectConfigToWorkspace<A, Routes extends WorkspaceRouteMap = Workspac
       schema ??
       (createWorkspaceFromArtifactProject(project) as unknown as SchemaIdeInputSchema<A, Routes>),
     artifactProject: project,
+    ...(relationInputSchema ? { relationInputSchema } : {}),
+    ...(relationSchema ? { relationSchema } : {}),
+    ...(relationValue ? { relationValue } : {}),
     ...(defaultFormat ? { defaultFormat } : {}),
     ...(include ? { include } : {}),
     ...(exclude ? { exclude } : {}),

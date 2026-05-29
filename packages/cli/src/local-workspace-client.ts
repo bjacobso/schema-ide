@@ -237,6 +237,11 @@ function createArtifactRuntime(
     activeFormat: reflection.activeFormat,
     ...(workspace.id ? { workspaceId: workspace.id } : {}),
     ...(workspace.artifactProject ? { project: workspace.artifactProject } : {}),
+    ...(workspace.relationInputSchema
+      ? { relationInputSchema: workspace.relationInputSchema }
+      : {}),
+    ...(workspace.relationSchema ? { relationSchema: workspace.relationSchema } : {}),
+    ...(workspace.relationValue ? { relationValue: workspace.relationValue } : {}),
   });
 }
 

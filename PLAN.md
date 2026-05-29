@@ -878,6 +878,12 @@ CLI configuration naming has started moving in this direction:
 `defineSchemaIdeProject` now accepts an artifact project as the primary config
 shape, derives the compatibility workspace schema when omitted, and is used by
 the first-party artifact-backed example and Onboarded configs.
+CLI project configs can also carry artifact relation runtime options
+(`relationInputSchema`, `relationSchema`, and `relationValue`). The Onboarded
+sample config now uses those options so the generic local filesystem client can
+serve schema-algebra `relationGraph`, `relationDiagnostics`, and
+`patchSuggestions` views from the configured artifact project rather than only
+from the package-specific runtime helper.
 
 ### Phase 6: Update React SchemaIde API
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { validateSchemaIdeValue } from "@schema-ide/core";
 import {
+  createLocalFilesystemWorkspaceClient,
   loadSchemaIdeWorkspaceConfig,
   readSourceFilesFromDirectory,
   validateWorkspaceDirectory,
@@ -50,6 +51,38 @@ describe("onboarded-config", () => {
     expect(workspace.artifactProject?.routes.map((route) => route.pattern)).toEqual(
       artifactProjectConfig.files.map((route) => route.pattern),
     );
+
+    const client = createLocalFilesystemWorkspaceClient({
+      workspace,
+      directory: fixtureDir,
+    });
+    try {
+      await expect(
+        Effect.runPromise(
+          client.readArtifactView({
+            ref: { _tag: "Workspace", workspaceId: artifactProjectConfig.id },
+            view: "relationDiagnostics",
+          }),
+        ),
+      ).resolves.toMatchObject({ value: [] });
+
+      const graphView = await Effect.runPromise(
+        client.readArtifactView({
+          ref: { _tag: "Workspace", workspaceId: artifactProjectConfig.id },
+          view: "relationGraph",
+        }),
+      );
+      const graph = graphView.value;
+      expect(
+        (graph as { definitions: readonly { type: string }[] }).definitions.map(
+          (definition) => definition.type,
+        ),
+      ).toEqual(
+        expect.arrayContaining(["Form", "Document", "PdfInspection", "PdfAnnotationDocument"]),
+      );
+    } finally {
+      await Effect.runPromise(client.close);
+    }
   }, 45_000);
 
   it("validates the packaged sample workspace through the embedded CLI", async () => {
