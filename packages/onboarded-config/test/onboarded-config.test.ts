@@ -2,7 +2,8 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import { ArtifactProjectConfigSchema } from "@schema-ide/artifacts";
 import {
   createLocalFilesystemWorkspaceClient,
   loadSchemaIdeWorkspaceConfig,
@@ -142,6 +143,7 @@ describe("onboarded-config", () => {
     const serializedConfig = parseOnboardedArtifactProjectConfig(
       serializeOnboardedArtifactProjectConfig(),
     );
+    const genericConfig = Schema.decodeUnknownSync(ArtifactProjectConfigSchema)(config);
     const files = await readSourceFilesFromDirectory({
       directory: fixtureDir,
       include: config.include,
@@ -149,7 +151,14 @@ describe("onboarded-config", () => {
     const runtime = createOnboardedArtifactRuntimeFromProjectConfig({ config, files });
 
     expect(config).toEqual(OnboardedArtifactProjectConfigDefinition);
+    expect(genericConfig).toEqual(config);
     expect(serializedConfig).toEqual(config);
+    expect(config.files.find((route) => route.id === "account")).toMatchObject({
+      mode: "file",
+    });
+    expect(config.files.find((route) => route.id === "forms")).toMatchObject({
+      mode: "values",
+    });
     expect(config.files.map((route) => route.id)).toEqual([
       "account",
       "attributes",

@@ -5,6 +5,7 @@ import {
 } from "@schema-ide/core";
 import {
   ArtifactProject,
+  ArtifactProjectConfigSchema,
   type AnyArtifactType,
   type ArtifactProjectConfig,
   type ArtifactProjectConfigArtifact,
@@ -29,7 +30,9 @@ export const OnboardedArtifactProjectRouteSchema = Schema.Struct({
   pattern: Schema.String,
   artifact: Schema.String,
   format: Schema.Literals(["json", "yaml"] as const),
+  workspaceField: Schema.optional(Schema.String),
   mode: Schema.optional(Schema.Literals(["file", "files", "values"] as const)),
+  indexBy: Schema.optional(Schema.String),
   optional: Schema.optional(Schema.Boolean),
   description: Schema.optional(Schema.String),
 });
@@ -179,6 +182,7 @@ export const OnboardedArtifactProjectEnvironment = {
 export function createOnboardedArtifactProject(
   config: OnboardedArtifactProjectConfig = OnboardedArtifactProjectConfigDefinition,
 ): ArtifactProjectDeclaration<string, any, any> {
+  Schema.decodeUnknownSync(ArtifactProjectConfigSchema)(config);
   return ArtifactProject.fromConfig(config, {
     artifacts: OnboardedArtifactProjectEnvironment,
   });

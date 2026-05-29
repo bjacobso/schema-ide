@@ -583,6 +583,12 @@ Route configs now also support first-class compatibility projection hints
 value-array route modes in `artifact-project.yaml`, so the YAML project config
 drives the derived workspace shape instead of a separate TypeScript route-mode
 map.
+`@schema-ide/artifacts` now exports `ArtifactProjectConfigSchema`,
+`ArtifactProjectFileConfigSchema`, and the route-mode/metadata schemas so hosts
+can validate YAML- or JSON-decoded project configuration against the generic
+artifact project contract before binding package-specific schemas and handlers.
+The Onboarded YAML parser validates its stricter config against the same generic
+contract.
 
 ### How Workspace.Struct Gets Superseded
 
@@ -1405,8 +1411,8 @@ new code can do everything important without starting from `Workspace.Struct`.
 ### Migration Tracking Checklist
 
 - [ ] Artifact project routes cover every current workspace route feature.
-- [ ] Artifact project config round trips through YAML.
-- [ ] Core workspace projection helpers are public and tested.
+- [x] Artifact project config round trips through YAML.
+- [x] Core workspace projection helpers are public and tested.
 - [ ] Core validation/reflection paths can run from artifact views.
 - [ ] Schema-algebra views are exposed through artifact runtime.
 - [ ] React accepts `project` alone for a real example.

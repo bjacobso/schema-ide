@@ -2,7 +2,14 @@ export { ArtifactApi, ArtifactApiDeclaration, capabilitiesForTypes } from "./api
 export { ArtifactType, ArtifactTypeDeclaration } from "./artifact-type";
 export { ArtifactHandler } from "./handler";
 export { ArtifactMatcher } from "./matcher";
-export { ArtifactProject, ArtifactProjectDeclaration } from "./project";
+export {
+  ArtifactMetadataSchema,
+  ArtifactProject,
+  ArtifactProjectConfigSchema,
+  ArtifactProjectDeclaration,
+  ArtifactProjectFileConfigSchema,
+  ArtifactProjectRouteModeSchema,
+} from "./project";
 export {
   CachePolicy,
   Cost,

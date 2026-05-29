@@ -1,4 +1,4 @@
-import type { Schema } from "effect";
+import { Schema } from "effect";
 import { ArtifactApi, type AnyArtifactApi, type ArtifactCapability } from "./api";
 import { ArtifactTypeDeclaration, type AnyArtifactType } from "./artifact-type";
 import { ArtifactMatcher, type ArtifactMetadata } from "./matcher";
@@ -63,6 +63,38 @@ export interface ArtifactProjectConfig {
   readonly files: readonly ArtifactProjectFileConfig[];
   readonly algebra?: unknown;
 }
+
+export const ArtifactProjectRouteModeSchema = Schema.Literals(["file", "files", "values"] as const);
+
+export const ArtifactMetadataSchema = Schema.Struct({
+  mimeType: Schema.optional(Schema.String),
+  mediaType: Schema.optional(Schema.String),
+  extension: Schema.optional(Schema.String),
+  tags: Schema.optional(Schema.Array(Schema.String)),
+  attributes: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+});
+
+export const ArtifactProjectFileConfigSchema = Schema.Struct({
+  id: Schema.String,
+  pattern: Schema.String,
+  artifact: Schema.String,
+  format: Schema.optional(Schema.String),
+  workspaceField: Schema.optional(Schema.String),
+  mode: Schema.optional(ArtifactProjectRouteModeSchema),
+  indexBy: Schema.optional(Schema.String),
+  optional: Schema.optional(Schema.Boolean),
+  description: Schema.optional(Schema.String),
+  metadata: Schema.optional(ArtifactMetadataSchema),
+});
+
+export const ArtifactProjectConfigSchema = Schema.Struct({
+  id: Schema.String,
+  name: Schema.optional(Schema.String),
+  defaultFormat: Schema.optional(Schema.String),
+  include: Schema.optional(Schema.Array(Schema.String)),
+  files: Schema.Array(ArtifactProjectFileConfigSchema),
+  algebra: Schema.optional(Schema.Unknown),
+});
 
 export interface ArtifactProjectOptions {
   readonly name?: string | undefined;

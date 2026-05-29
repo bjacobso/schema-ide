@@ -71,12 +71,17 @@ the non-serializable schemas and artifact types:
 
 ```ts
 const config = ArtifactProject.toConfig(Project);
-const ProjectFromConfig = ArtifactProject.fromConfig(config, {
+const decodedConfig = Schema.decodeUnknownSync(ArtifactProjectConfigSchema)(config);
+const ProjectFromConfig = ArtifactProject.fromConfig(decodedConfig, {
   artifacts: {
     json: Json,
   },
 });
 ```
+
+`ArtifactProjectConfigSchema` and `ArtifactProjectFileConfigSchema` are exported
+for hosts that decode project configs from YAML, JSON, or another document
+format before binding them to runtime schemas and handlers.
 
 Route configs can also carry compatibility projection hints such as
 `workspaceField`, `mode`, and `indexBy`. Schema IDE core uses those hints when
@@ -90,6 +95,7 @@ Implemented:
 - artifact stores with an in-memory implementation for workspace files
 - artifact projects with file routes, project-level workspace views, and
   serializable project config round-trips
+- Effect Schema contracts for serializable artifact project configs
 - pure matchers for extension, MIME type, URI scheme, ref tag, and metadata
 - artifact type and view declarations
 - view policy annotations

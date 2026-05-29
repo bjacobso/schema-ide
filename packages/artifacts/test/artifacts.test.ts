@@ -5,6 +5,7 @@ import {
   ArtifactHandler,
   ArtifactMatcher,
   ArtifactProject,
+  ArtifactProjectConfigSchema,
   ArtifactRef,
   ArtifactRegistry,
   ArtifactType,
@@ -238,8 +239,9 @@ describe("schema-ide-artifacts", () => {
         views: ["relationGraph"],
       },
     };
+    const decodedConfig = Schema.decodeUnknownSync(ArtifactProjectConfigSchema)(config);
 
-    const Project = ArtifactProject.fromConfig(config, {
+    const Project = ArtifactProject.fromConfig(decodedConfig, {
       artifacts: {
         Config: {
           type: ArtifactType.make("config"),
