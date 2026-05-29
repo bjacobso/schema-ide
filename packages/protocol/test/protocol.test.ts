@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Schema } from "effect";
 import {
+  ArtifactProjectEventSchema,
   OpenRouterChatCompletionResponseSchema,
   OpenRouterChatRequestSchema,
   ArtifactRefSchema,
@@ -103,6 +104,7 @@ describe("schema-ide-protocol", () => {
       "GetCapabilities",
       "GetSnapshot",
       "WatchWorkspace",
+      "WatchArtifactProject",
       "ApplyWorkspaceChange",
       "PreviewWorkspaceFiles",
       "ListArtifactRefs",
@@ -111,6 +113,12 @@ describe("schema-ide-protocol", () => {
       "ApplyArtifactChange",
     ]);
     expect(error.code).toBe("unsafe-path");
+
+    const artifactEvent = Schema.decodeUnknownSync(ArtifactProjectEventSchema)({
+      type: "error",
+      message: "Project watch failed",
+    });
+    expect(artifactEvent.type).toBe("error");
   });
 
   it("decodes and derives artifact protocol payloads from snapshots", () => {

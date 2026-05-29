@@ -155,20 +155,22 @@ function makeDurableObjectWorkspaceService(
   });
 
   const getSnapshot = readSnapshot(storage);
+  const watchWorkspace = Stream.unwrap(
+    Effect.gen(function* () {
+      const metadata = yield* readMetadata(storage);
+      const snapshot = yield* getSnapshot;
+      return Stream.fromIterable<WorkspaceEvent>([
+        { type: "capabilities", capabilities: capabilities(metadata) },
+        { type: "snapshot", snapshot },
+      ]);
+    }),
+  );
 
   return {
     getCapabilities: readMetadata(storage).pipe(Effect.map(capabilities)),
     getSnapshot,
-    watchWorkspace: Stream.unwrap(
-      Effect.gen(function* () {
-        const metadata = yield* readMetadata(storage);
-        const snapshot = yield* getSnapshot;
-        return Stream.fromIterable<WorkspaceEvent>([
-          { type: "capabilities", capabilities: capabilities(metadata) },
-          { type: "snapshot", snapshot },
-        ]);
-      }),
-    ),
+    watchWorkspace,
+    watchArtifactProject: watchWorkspace,
     applyChange: (change) =>
       Effect.tryPromise({
         try: async () => {

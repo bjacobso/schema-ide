@@ -118,6 +118,10 @@ export const WorkspaceEventSchema = Schema.Union([
 
 export type WorkspaceEvent = typeof WorkspaceEventSchema.Type;
 
+export const ArtifactProjectEventSchema = WorkspaceEventSchema;
+
+export type ArtifactProjectEvent = WorkspaceEvent;
+
 export const WorkspaceChangeRequestSchema = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("writeFile"),
@@ -270,6 +274,11 @@ export class SchemaIdeWorkspaceRpcGroup extends RpcGroup.make(
     error: WorkspaceRpcErrorSchema,
     stream: true,
   }),
+  Rpc.make("WatchArtifactProject", {
+    success: ArtifactProjectEventSchema,
+    error: WorkspaceRpcErrorSchema,
+    stream: true,
+  }),
   Rpc.make("ApplyWorkspaceChange", {
     payload: WorkspaceChangeRequestSchema,
     success: WorkspaceChangeResponseSchema,
@@ -305,6 +314,7 @@ export interface SchemaIdeWorkspaceService {
   readonly getCapabilities: Effect.Effect<WorkspaceCapabilities, SchemaIdeWorkspaceError>;
   readonly getSnapshot: Effect.Effect<WorkspaceSnapshot, SchemaIdeWorkspaceError>;
   readonly watchWorkspace: Stream.Stream<WorkspaceEvent, SchemaIdeWorkspaceError>;
+  readonly watchArtifactProject: Stream.Stream<ArtifactProjectEvent, SchemaIdeWorkspaceError>;
   readonly applyChange: (
     change: WorkspaceChangeRequest,
   ) => Effect.Effect<WorkspaceChangeResponse, SchemaIdeWorkspaceError>;

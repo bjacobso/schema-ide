@@ -10,6 +10,8 @@ export const makeSchemaIdeWorkspaceRpcHandlers = (workspace: SchemaIdeWorkspaceS
     GetCapabilities: () => workspace.getCapabilities.pipe(Effect.mapError(toWorkspaceRpcError)),
     GetSnapshot: () => workspace.getSnapshot.pipe(Effect.mapError(toWorkspaceRpcError)),
     WatchWorkspace: () => workspace.watchWorkspace.pipe(Stream.mapError(toWorkspaceRpcError)),
+    WatchArtifactProject: () =>
+      workspace.watchArtifactProject.pipe(Stream.mapError(toWorkspaceRpcError)),
     ApplyWorkspaceChange: (change) =>
       workspace.applyChange(change).pipe(Effect.mapError(toWorkspaceRpcError)),
     PreviewWorkspaceFiles: (request) =>

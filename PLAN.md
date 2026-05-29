@@ -944,9 +944,10 @@ WatchArtifactProject
 Status: mostly implemented as compatibility-backed workspace RPC. The shared
 protocol, server handlers, React RPC client, CLI local client, and workspace
 store already expose artifact refs, capability inspection, view reads, and
-`writeSource` changes. Watch semantics still use the `WatchWorkspace` stream and
-snapshot events; add an artifact-named watch stream only if clients need event
-shapes that are not snapshot-compatible.
+`writeSource` changes. The protocol also exposes `WatchArtifactProject` as an
+artifact-named alias over the existing snapshot-compatible watch events, leaving
+room for a distinct artifact event shape later without blocking artifact-first
+clients today.
 
 Keep existing workspace RPC temporarily, but have it delegate to the artifact
 project runtime.

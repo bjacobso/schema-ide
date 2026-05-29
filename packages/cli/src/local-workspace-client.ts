@@ -125,22 +125,24 @@ export function createLocalFilesystemWorkspaceClient({
       Effect.provide(NodeWorkspaceLayer),
     ),
   );
+  const watchWorkspace = Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
+    Effect.acquireRelease(
+      Effect.gen(function* () {
+        const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
+        subscribers.add(subscriber);
+        Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
+        Queue.offerUnsafe(queue, { type: "snapshot", snapshot: yield* getSnapshot });
+        return subscriber;
+      }),
+      (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
+    ),
+  );
 
   return {
     getCapabilities: Effect.succeed(capabilities),
     getSnapshot,
-    watchWorkspace: Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
-      Effect.acquireRelease(
-        Effect.gen(function* () {
-          const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
-          subscribers.add(subscriber);
-          Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
-          Queue.offerUnsafe(queue, { type: "snapshot", snapshot: yield* getSnapshot });
-          return subscriber;
-        }),
-        (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
-      ),
-    ),
+    watchWorkspace,
+    watchArtifactProject: watchWorkspace,
     applyChange: (change) =>
       Effect.gen(function* () {
         const before = (yield* getSnapshot).files;

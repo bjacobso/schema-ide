@@ -147,22 +147,24 @@ export function createMemoryWorkspaceClient<
     const event: WorkspaceEvent = { type: "snapshot", snapshot: snapshot() };
     for (const subscriber of subscribers) subscriber(event);
   };
+  const watchWorkspace = Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
+    Effect.acquireRelease(
+      Effect.sync(() => {
+        const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
+        subscribers.add(subscriber);
+        Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
+        Queue.offerUnsafe(queue, { type: "snapshot", snapshot: snapshot() });
+        return subscriber;
+      }),
+      (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
+    ),
+  );
 
   return {
     getCapabilities: Effect.succeed(capabilities),
     getSnapshot: Effect.sync(snapshot),
-    watchWorkspace: Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
-      Effect.acquireRelease(
-        Effect.sync(() => {
-          const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
-          subscribers.add(subscriber);
-          Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
-          Queue.offerUnsafe(queue, { type: "snapshot", snapshot: snapshot() });
-          return subscriber;
-        }),
-        (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
-      ),
-    ),
+    watchWorkspace,
+    watchArtifactProject: watchWorkspace,
     applyChange: (change) =>
       Effect.try({
         try: () => {
@@ -343,22 +345,24 @@ export function createArtifactWorkspaceClient(
         revision,
       };
     });
+  const watchWorkspace = Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
+    Effect.acquireRelease(
+      Effect.gen(function* () {
+        const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
+        subscribers.add(subscriber);
+        Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
+        Queue.offerUnsafe(queue, { type: "snapshot", snapshot: yield* snapshot });
+        return subscriber;
+      }),
+      (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
+    ),
+  );
 
   return {
     getCapabilities: Effect.succeed(capabilities),
     getSnapshot: snapshot,
-    watchWorkspace: Stream.callback<WorkspaceEvent, SchemaIdeWorkspaceError>((queue) =>
-      Effect.acquireRelease(
-        Effect.gen(function* () {
-          const subscriber = (event: WorkspaceEvent) => Queue.offerUnsafe(queue, event);
-          subscribers.add(subscriber);
-          Queue.offerUnsafe(queue, { type: "capabilities", capabilities });
-          Queue.offerUnsafe(queue, { type: "snapshot", snapshot: yield* snapshot });
-          return subscriber;
-        }),
-        (subscriber) => Effect.sync(() => subscribers.delete(subscriber)),
-      ),
-    ),
+    watchWorkspace,
+    watchArtifactProject: watchWorkspace,
     applyChange: (change) =>
       Effect.gen(function* () {
         const before = yield* artifacts.files.pipe(Effect.mapError(toWorkspaceError));
@@ -480,6 +484,9 @@ export function createRpcWorkspaceClient(
     ).pipe(Effect.mapError(toRpcWorkspaceError)),
     watchWorkspace: Stream.unwrap(
       makeClient.pipe(Effect.map((client) => client.WatchWorkspace(undefined))),
+    ).pipe(Stream.scoped, Stream.mapError(toRpcWorkspaceError)),
+    watchArtifactProject: Stream.unwrap(
+      makeClient.pipe(Effect.map((client) => client.WatchArtifactProject(undefined))),
     ).pipe(Stream.scoped, Stream.mapError(toRpcWorkspaceError)),
     applyChange: (change) =>
       Effect.scoped(

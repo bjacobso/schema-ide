@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Stream } from "effect";
 import type { SchemaIdeWorkspaceService, WorkspaceSnapshot } from "../src";
 
 export interface WorkspaceClientContractSubject {
@@ -40,6 +40,15 @@ export function defineWorkspaceClientContract({
 
         expect(capabilities.features.watch).toBe(true);
         expect(initial.files.some((file) => file.path === existingPath)).toBe(true);
+        const artifactWatchEvents = yield* subject.workspace.watchArtifactProject.pipe(
+          Stream.take(2),
+          Stream.runCollect,
+          Effect.timeout("2 seconds"),
+        );
+        expect([...artifactWatchEvents].map((event) => event.type)).toEqual([
+          "capabilities",
+          "snapshot",
+        ]);
         const artifactRefs = yield* subject.workspace.listArtifactRefs;
         expect(
           artifactRefs.artifacts.some(

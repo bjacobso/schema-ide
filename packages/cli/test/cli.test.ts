@@ -335,6 +335,9 @@ describe("schema-ide-cli", () => {
           const watchEvents = yield* rpcClient
             .WatchWorkspace(undefined)
             .pipe(Stream.take(2), Stream.runCollect, Effect.timeout("2 seconds"));
+          const artifactProjectEvents = yield* rpcClient
+            .WatchArtifactProject(undefined)
+            .pipe(Stream.take(2), Stream.runCollect, Effect.timeout("2 seconds"));
 
           expect(capabilities).toMatchObject({
             mode: "local-filesystem",
@@ -346,6 +349,10 @@ describe("schema-ide-cli", () => {
           ]);
           expect(snapshot.reflection.validationSummary.errorCount).toBe(1);
           expect(Array.from(watchEvents).map((event) => event.type)).toEqual([
+            "capabilities",
+            "snapshot",
+          ]);
+          expect(Array.from(artifactProjectEvents).map((event) => event.type)).toEqual([
             "capabilities",
             "snapshot",
           ]);
