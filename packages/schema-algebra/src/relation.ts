@@ -3,6 +3,7 @@ export { buildRelationGraph as graph } from "./graph";
 export {
   buildEntityIndex as entityIndex,
   definitionLocations,
+  patchSuggestions,
   referenceDiagnostics,
   references,
 } from "./inspect";
@@ -18,6 +19,7 @@ export type {
   RelationIdAnnotation,
   RelationKind,
   RelationParentScope,
+  RelationPatchSuggestion,
   RelationPathScope,
   RelationRefAnnotation,
   RelationReference,

@@ -189,6 +189,7 @@ describe("schema-ide-core", () => {
       "workflow.workspace.references",
       "workflow.workspace.relationDiagnostics",
       "workflow.workspace.referenceDiagnostics",
+      "workflow.workspace.patchSuggestions",
     ]);
     expect(
       project.capabilities(ArtifactRef.workspaceFile("actions/email.json")).map((capability) => ({
@@ -244,6 +245,11 @@ describe("schema-ide-core", () => {
       },
       {
         id: "Actions.referenceDiagnostics",
+        routeId: "Actions",
+        routePattern: "actions/*.json",
+      },
+      {
+        id: "Actions.patchSuggestions",
         routeId: "Actions",
         routePattern: "actions/*.json",
       },
@@ -422,6 +428,7 @@ describe("schema-ide-core", () => {
       "references",
       "relationDiagnostics",
       "referenceDiagnostics",
+      "patchSuggestions",
     ]);
     expect(runtime.capabilities(fileRef).map((capability) => capability.view)).toEqual([
       "sourceText",
@@ -434,6 +441,7 @@ describe("schema-ide-core", () => {
       "references",
       "relationDiagnostics",
       "referenceDiagnostics",
+      "patchSuggestions",
       "decodedValue",
     ]);
     expect(runtime.project.name).toBe("schema-ide");
@@ -491,6 +499,11 @@ describe("schema-ide-core", () => {
       },
       {
         id: "config/*.json.referenceDiagnostics",
+        routeId: "config/*.json",
+        routePattern: "config/*.json",
+      },
+      {
+        id: "config/*.json.patchSuggestions",
         routeId: "config/*.json",
         routePattern: "config/*.json",
       },
@@ -675,6 +688,16 @@ describe("schema-ide-core", () => {
         message: 'Unresolved Form reference "missing"',
       }),
     ]);
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "patchSuggestions")),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        kind: "create-definition",
+        target: "Form",
+        id: "missing",
+        path: ["policies", "0", "formId"],
+      }),
+    ]);
     await expect(Effect.runPromise(runtime.view(formRef, "relationGraph"))).resolves.toEqual({
       definitions: [
         {
@@ -735,8 +758,17 @@ describe("schema-ide-core", () => {
         message: 'Unresolved Form reference "missing"',
       }),
     ]);
+    await expect(Effect.runPromise(runtime.view(policyRef, "patchSuggestions"))).resolves.toEqual([
+      expect.objectContaining({
+        kind: "create-definition",
+        target: "Form",
+        id: "missing",
+        path: ["formId"],
+      }),
+    ]);
     await expect(Effect.runPromise(runtime.relationDiagnostics)).resolves.toHaveLength(1);
     await expect(Effect.runPromise(runtime.referenceDiagnostics)).resolves.toHaveLength(1);
+    await expect(Effect.runPromise(runtime.patchSuggestions)).resolves.toHaveLength(1);
   });
 
   it("derives completions, hover, and quick fixes from generated JSON Schema", () => {

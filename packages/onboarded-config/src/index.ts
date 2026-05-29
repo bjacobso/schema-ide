@@ -74,4 +74,8 @@ export {
   type RuleAny,
   type RuleCondition,
 } from "./rules";
-export { OnboardedAccountWorkspaceSchema, type AccountWorkspaceValue } from "./workspace";
+export {
+  OnboardedAccountWorkspaceBaseSchema,
+  OnboardedAccountWorkspaceSchema,
+  type AccountWorkspaceValue,
+} from "./workspace";

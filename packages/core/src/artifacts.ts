@@ -22,6 +22,7 @@ import {
   buildRelationGraph,
   buildEntityIndex,
   definitionLocations as relationDefinitionLocations,
+  patchSuggestions as relationPatchSuggestions,
   referenceDiagnostics as relationReferenceDiagnostics,
   references as relationReferences,
   validateRelations,
@@ -29,6 +30,7 @@ import {
   type RelationDiagnostic,
   type RelationEntityIndex,
   type RelationGraph,
+  type RelationPatchSuggestion,
   type RelationReference,
 } from "@schema-ide/schema-algebra";
 import { formatForPath, parseDocument } from "./document-codec";
@@ -95,6 +97,10 @@ export interface SchemaIdeArtifactRuntime<A = unknown> {
     readonly RelationDiagnostic[],
     SchemaIdeArtifactError
   >;
+  readonly patchSuggestions: Effect.Effect<
+    readonly RelationPatchSuggestion[],
+    SchemaIdeArtifactError
+  >;
   readonly preview: (
     files: readonly SourceFile[],
     activeFile?: string | null | undefined,
@@ -109,8 +115,9 @@ export interface CreateSchemaIdeArtifactRuntimeOptions<A = unknown> {
   readonly project?: ArtifactProjectDeclaration<string, any, any> | undefined;
   readonly workspaceId?: string | undefined;
   readonly store?: ArtifactStore | undefined;
+  readonly relationInputSchema?: SchemaIdeInputSchema<any> | undefined;
   readonly relationSchema?: AnySchema | undefined;
-  readonly relationValue?: ((value: A) => unknown) | undefined;
+  readonly relationValue?: ((value: any) => unknown) | undefined;
 }
 
 export interface CreateArtifactProjectFromWorkspaceOptions {
@@ -213,6 +220,15 @@ export const SchemaIdeWorkspaceFileArtifact = ArtifactType.make("schema-ide.work
     },
   })
   .view("referenceDiagnostics", {
+    output: SchemaIdeRelationArraySchema,
+    error: SchemaIdeArtifactErrorSchema,
+    annotations: {
+      cost: Cost.low,
+      cache: CachePolicy.contentHash,
+      mediaType: "application/json",
+    },
+  })
+  .view("patchSuggestions", {
     output: SchemaIdeRelationArraySchema,
     error: SchemaIdeArtifactErrorSchema,
     annotations: {
@@ -440,6 +456,17 @@ function withSchemaIdeWorkspaceViews(
       },
     }) as ArtifactProjectDeclaration<string, any, any>;
   }
+  if (!next.workspaceType.views["patchSuggestions"]) {
+    next = next.view("patchSuggestions", {
+      output: SchemaIdeRelationArraySchema,
+      error: SchemaIdeArtifactErrorSchema,
+      annotations: {
+        cost: Cost.low,
+        cache: CachePolicy.contentHash,
+        mediaType: "application/json",
+      },
+    }) as ArtifactProjectDeclaration<string, any, any>;
+  }
   return next;
 }
 
@@ -457,6 +484,7 @@ export function createSchemaIdeArtifactRuntime<A>({
       ...(workspaceId ? { workspaceId } : {}),
     })),
   }),
+  relationInputSchema = schema,
   relationSchema = hasAst(schema) ? schema : undefined,
   relationValue = (value) => value,
 }: CreateSchemaIdeArtifactRuntimeOptions<A>): SchemaIdeArtifactRuntime<A> {
@@ -476,6 +504,19 @@ export function createSchemaIdeArtifactRuntime<A>({
       }),
     ),
   );
+  const runtimeRelationInputValidation =
+    relationInputSchema === schema
+      ? runtimeValidation
+      : runtimeFiles.pipe(
+          Effect.map((currentFiles) =>
+            validateSchemaIdeValue({
+              schema: relationInputSchema,
+              files: currentFiles,
+              activeFile,
+              activeFormat,
+            }),
+          ),
+        );
   const runtimeReflection = Effect.gen(function* () {
     const currentFiles = yield* runtimeFiles;
     const validation = validateSchemaIdeValue({
@@ -492,7 +533,7 @@ export function createSchemaIdeArtifactRuntime<A>({
       validation,
     });
   });
-  const runtimeRelationGraph = runtimeValidation.pipe(
+  const runtimeRelationGraph = runtimeRelationInputValidation.pipe(
     Effect.flatMap((validation) =>
       Effect.try({
         try: () =>
@@ -503,7 +544,7 @@ export function createSchemaIdeArtifactRuntime<A>({
       }),
     ),
   );
-  const runtimeRelationDiagnostics = runtimeValidation.pipe(
+  const runtimeRelationDiagnostics = runtimeRelationInputValidation.pipe(
     Effect.flatMap((validation) =>
       Effect.try({
         try: () =>
@@ -522,6 +563,9 @@ export function createSchemaIdeArtifactRuntime<A>({
   const runtimeReferenceDiagnostics = runtimeRelationDiagnostics.pipe(
     Effect.map(relationReferenceDiagnostics),
   );
+  const runtimePatchSuggestions = runtimeRelationDiagnostics.pipe(
+    Effect.map(relationPatchSuggestions),
+  );
   const preview = (
     previewFiles: readonly SourceFile[],
     previewActiveFile: string | null | undefined = activeFile,
@@ -534,6 +578,7 @@ export function createSchemaIdeArtifactRuntime<A>({
       ...(workspaceId ? { workspaceId } : {}),
       project,
       ...(relationSchema ? { relationSchema } : {}),
+      ...(relationInputSchema !== schema ? { relationInputSchema } : {}),
       relationValue,
     }).reflection;
 
@@ -592,6 +637,11 @@ export function createSchemaIdeArtifactRuntime<A>({
       ),
     )
     .addHandler(
+      ArtifactHandler.make(SchemaIdeWorkspaceFileArtifact.view("patchSuggestions"), ({ ref }) =>
+        fileRelationDiagnostics(store, project, ref).pipe(Effect.map(relationPatchSuggestions)),
+      ),
+    )
+    .addHandler(
       ArtifactHandler.make(project.view("decodedWorkspace"), () =>
         runtimeValidation.pipe(Effect.map((validation) => validation.value)),
       ),
@@ -623,6 +673,9 @@ export function createSchemaIdeArtifactRuntime<A>({
     )
     .addHandler(
       ArtifactHandler.make(project.view("referenceDiagnostics"), () => runtimeReferenceDiagnostics),
+    )
+    .addHandler(
+      ArtifactHandler.make(project.view("patchSuggestions"), () => runtimePatchSuggestions),
     );
 
   const view: SchemaIdeArtifactRuntime["view"] = (ref, viewName, input, options) => {
@@ -649,6 +702,7 @@ export function createSchemaIdeArtifactRuntime<A>({
     references: runtimeReferences,
     relationDiagnostics: runtimeRelationDiagnostics,
     referenceDiagnostics: runtimeReferenceDiagnostics,
+    patchSuggestions: runtimePatchSuggestions,
     preview,
   };
 }

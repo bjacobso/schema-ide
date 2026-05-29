@@ -75,4 +75,9 @@ algebra:
   relationSchema: OnboardedRelationWorkspaceSchema
   views:
     - relationGraph
+    - entityIndex
+    - definitionLocations
+    - references
     - relationDiagnostics
+    - referenceDiagnostics
+    - patchSuggestions

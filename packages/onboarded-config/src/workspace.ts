@@ -90,13 +90,16 @@ const onboardedRouteAnnotations = {
   imports: { identifier: "OnboardedImports", description: "Source manifests" },
 } as const satisfies Record<string, { readonly identifier: string; readonly description: string }>;
 
-export const OnboardedAccountWorkspaceSchema = (
-  createWorkspaceFromArtifactProject(OnboardedArtifactProject, {
+export const OnboardedAccountWorkspaceBaseSchema = createWorkspaceFromArtifactProject(
+  OnboardedArtifactProject,
+  {
     mode: (route) => onboardedRouteModes[route.id as keyof typeof onboardedRouteModes] ?? "files",
     annotations: (route) =>
       onboardedRouteAnnotations[route.id as keyof typeof onboardedRouteAnnotations],
-  }) as any
-).pipe(
+  },
+) as any;
+
+export const OnboardedAccountWorkspaceSchema = OnboardedAccountWorkspaceBaseSchema.pipe(
   Workspace.validate<AccountWorkspaceValue>(
     "onboarded account workspace references resolve",
     (workspace, issue, context) => {

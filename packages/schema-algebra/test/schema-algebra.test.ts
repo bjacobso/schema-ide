@@ -7,6 +7,7 @@ import {
   buildEntityIndex,
   definitionLocations,
   getRelationAnnotation,
+  patchSuggestions,
   referenceDiagnostics,
   references,
   validateRelations,
@@ -243,10 +244,39 @@ describe("schema-algebra", () => {
         path: ["policies", "0", "requiredFieldIds", "0"],
       }),
     ]);
+    expect(patchSuggestions(diagnostics)).toEqual([
+      {
+        kind: "create-definition",
+        target: "Form",
+        id: "missing",
+        path: ["policies", "0", "formId"],
+        message: 'Create Form "missing"',
+        reference: expect.objectContaining({
+          target: "Form",
+          id: "missing",
+          path: ["policies", "0", "formId"],
+        }),
+      },
+      {
+        kind: "create-definition",
+        target: "Field",
+        id: "name",
+        scope: "missing",
+        path: ["policies", "0", "requiredFieldIds", "0"],
+        message: 'Create Field "name"',
+        reference: expect.objectContaining({
+          target: "Field",
+          id: "name",
+          scope: "missing",
+          path: ["policies", "0", "requiredFieldIds", "0"],
+        }),
+      },
+    ]);
     expect(Relation.entityIndex(graph)).toEqual(buildEntityIndex(graph));
     expect(Relation.definitionLocations(graph)).toBe(graph.definitions);
     expect(Relation.references(graph)).toBe(graph.references);
     expect(Relation.referenceDiagnostics(diagnostics)).toEqual(referenceDiagnostics(diagnostics));
+    expect(Relation.patchSuggestions(diagnostics)).toEqual(patchSuggestions(diagnostics));
   });
 
   it("derives definitions from object values and validates path refs with typed edges", () => {

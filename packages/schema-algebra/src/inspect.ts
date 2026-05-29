@@ -4,6 +4,7 @@ import type {
   RelationEntityIndex,
   RelationEntityIndexEntry,
   RelationGraph,
+  RelationPatchSuggestion,
   RelationReference,
 } from "./types";
 
@@ -46,6 +47,26 @@ export function referenceDiagnostics(
   return diagnostics.filter((diagnostic) => {
     if (diagnostic.code === "unresolved-ref") return true;
     return diagnostic.code === "invalid-relation-value" && "target" in diagnostic.relation;
+  });
+}
+
+export function patchSuggestions(
+  diagnostics: readonly RelationDiagnostic[],
+): readonly RelationPatchSuggestion[] {
+  return diagnostics.flatMap((diagnostic) => {
+    if (diagnostic.code !== "unresolved-ref" || !("target" in diagnostic.relation)) return [];
+    const reference = diagnostic.relation;
+    return [
+      {
+        kind: "create-definition",
+        target: reference.target,
+        id: reference.id,
+        path: diagnostic.path,
+        message: `Create ${reference.target} "${reference.id}"`,
+        ...(reference.scope ? { scope: reference.scope } : {}),
+        reference,
+      },
+    ];
   });
 }
 

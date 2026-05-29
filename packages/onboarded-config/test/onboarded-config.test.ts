@@ -95,6 +95,9 @@ describe("onboarded-config", () => {
     await expect(
       Effect.runPromise(runtime.view(workspaceRef, "relationDiagnostics")),
     ).resolves.toEqual([]);
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "patchSuggestions")),
+    ).resolves.toEqual([]);
 
     const graph = await Effect.runPromise(runtime.view(workspaceRef, "relationGraph"));
     expect(
@@ -230,103 +233,104 @@ describe("onboarded-config", () => {
     );
   });
 
-  it("validates onboarded PDF mappings against forms and generated PDF metadata", () => {
+  it("validates onboarded PDF mappings against forms and generated PDF metadata", async () => {
+    const files = [
+      yamlFile("account.yaml", [
+        "id: demo-account",
+        "name: Demo Account",
+        "mode: test",
+        "timezone: America/Chicago",
+        "language: en",
+      ]),
+      yamlFile("attributes.yaml", [
+        "custom:",
+        "  employee:",
+        "    - key: badge_number",
+        "      label: Badge Number",
+        "      type: string",
+      ]),
+      yamlFile("forms/intake.yaml", [
+        "id: intake",
+        "name: Intake",
+        "status: draft",
+        "version:",
+        "  name: Intake",
+        "  description: null",
+        "  pages:",
+        "    - description: null",
+        "      assignee: employee",
+        "      fields:",
+        "        - path: form.signature",
+        "          type: signature",
+        "          required: true",
+      ]),
+      yamlFile("policies/default.yaml", [
+        "id: default-policy",
+        "name: Default Policy",
+        "status: draft",
+        "appliesTo: employee",
+        "when:",
+        "  all:",
+        "    - fact: employee.custom_attributes.badge_number",
+        "      operator: exists",
+        "      value: true",
+        "requires:",
+        "  forms:",
+        "    - form: intake",
+      ]),
+      yamlFile("documents/client/document.yaml", [
+        "id: client-pdf",
+        "name: Client PDF",
+        "kind: pdf",
+        "file: client.pdf",
+        "generated:",
+        "  inspect: _generated/client.pdf.inspect.yaml",
+        "  annotations: _generated/client.pdf.annotations.yaml",
+      ]),
+      {
+        path: "documents/client/client.pdf",
+        content: Buffer.from("%PDF-1.7\n%%EOF\n").toString("base64"),
+      },
+      yamlFile("documents/client/_generated/client.pdf.inspect.yaml", [
+        "kind: pdf",
+        "encoding: base64",
+        "pageCount: 1",
+        "pages:",
+        "  - page: 1",
+        "    width: 612",
+        "    height: 792",
+        "fields:",
+        "  - name: signature",
+        "    type: text",
+      ]),
+      yamlFile("documents/client/_generated/client.pdf.annotations.yaml", [
+        "pages:",
+        "  - page: 1",
+        "    annotations:",
+        "      - id: signature_box",
+        "        type: signature",
+        "        label: Signature",
+        "        bbox:",
+        "          x: 100",
+        "          y: 100",
+        "          width: 200",
+        "          height: 24",
+      ]),
+      yamlFile("pdf-mappings/broken.yaml", [
+        "id: broken-mapping",
+        "form: intake",
+        "document: client-pdf",
+        "mappings:",
+        "  - formField: form.missing",
+        "    pdfField: missing_pdf",
+        "    annotationId: missing_annotation",
+      ]),
+    ];
     const result = validateSchemaIdeValue({
       schema: OnboardedAccountWorkspaceSchema,
       activeFile: "pdf-mappings/broken.yaml",
       activeFormat: "yaml",
-      files: [
-        yamlFile("account.yaml", [
-          "id: demo-account",
-          "name: Demo Account",
-          "mode: test",
-          "timezone: America/Chicago",
-          "language: en",
-        ]),
-        yamlFile("attributes.yaml", [
-          "custom:",
-          "  employee:",
-          "    - key: badge_number",
-          "      label: Badge Number",
-          "      type: string",
-        ]),
-        yamlFile("forms/intake.yaml", [
-          "id: intake",
-          "name: Intake",
-          "status: draft",
-          "version:",
-          "  name: Intake",
-          "  description: null",
-          "  pages:",
-          "    - description: null",
-          "      assignee: employee",
-          "      fields:",
-          "        - path: form.signature",
-          "          type: signature",
-          "          required: true",
-        ]),
-        yamlFile("policies/default.yaml", [
-          "id: default-policy",
-          "name: Default Policy",
-          "status: draft",
-          "appliesTo: employee",
-          "when:",
-          "  all:",
-          "    - fact: employee.custom_attributes.badge_number",
-          "      operator: exists",
-          "      value: true",
-          "requires:",
-          "  forms:",
-          "    - form: intake",
-        ]),
-        yamlFile("documents/client/document.yaml", [
-          "id: client-pdf",
-          "name: Client PDF",
-          "kind: pdf",
-          "file: client.pdf",
-          "generated:",
-          "  inspect: _generated/client.pdf.inspect.yaml",
-          "  annotations: _generated/client.pdf.annotations.yaml",
-        ]),
-        {
-          path: "documents/client/client.pdf",
-          content: Buffer.from("%PDF-1.7\n%%EOF\n").toString("base64"),
-        },
-        yamlFile("documents/client/_generated/client.pdf.inspect.yaml", [
-          "kind: pdf",
-          "encoding: base64",
-          "pageCount: 1",
-          "pages:",
-          "  - page: 1",
-          "    width: 612",
-          "    height: 792",
-          "fields:",
-          "  - name: signature",
-          "    type: text",
-        ]),
-        yamlFile("documents/client/_generated/client.pdf.annotations.yaml", [
-          "pages:",
-          "  - page: 1",
-          "    annotations:",
-          "      - id: signature_box",
-          "        type: signature",
-          "        label: Signature",
-          "        bbox:",
-          "          x: 100",
-          "          y: 100",
-          "          width: 200",
-          "          height: 24",
-        ]),
-        yamlFile("pdf-mappings/broken.yaml", [
-          "id: broken-mapping",
-          "form: intake",
-          "document: client-pdf",
-          "mappings:",
-          "  - formField: form.missing",
-          "    pdfField: missing_pdf",
-          "    annotationId: missing_annotation",
-        ]),
-      ],
+      files,
     });
 
     expect(result.summary.valid).toBe(false);
@@ -335,6 +339,51 @@ describe("onboarded-config", () => {
         "Unknown form field: form.missing",
         "Unknown PDF field: missing_pdf",
         "Unknown PDF annotation: missing_annotation",
+      ]),
+    );
+
+    const runtime = createOnboardedArtifactRuntime({ files });
+    const workspaceRef = { _tag: "Workspace", workspaceId: "onboarded-account-yaml" } as const;
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "relationDiagnostics")),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unresolved-ref",
+          path: ["pdfMappings", "0", "mappings", "0", "formField"],
+        }),
+        expect.objectContaining({
+          code: "unresolved-ref",
+          path: ["pdfMappings", "0", "mappings", "0", "pdfField"],
+        }),
+        expect.objectContaining({
+          code: "unresolved-ref",
+          path: ["pdfMappings", "0", "mappings", "0", "annotationId"],
+        }),
+      ]),
+    );
+    await expect(
+      Effect.runPromise(runtime.view(workspaceRef, "patchSuggestions")),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "create-definition",
+          target: "FormField",
+          id: "form.missing",
+          scope: "intake",
+        }),
+        expect.objectContaining({
+          kind: "create-definition",
+          target: "PdfField",
+          id: "missing_pdf",
+          scope: "client-pdf",
+        }),
+        expect.objectContaining({
+          kind: "create-definition",
+          target: "PdfAnnotation",
+          id: "missing_annotation",
+          scope: "client-pdf",
+        }),
       ]),
     );
   });

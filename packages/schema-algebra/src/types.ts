@@ -88,3 +88,13 @@ export interface RelationDiagnostic {
   readonly message: string;
   readonly relation: RelationDefinition | RelationReference;
 }
+
+export interface RelationPatchSuggestion {
+  readonly kind: "create-definition";
+  readonly target: string;
+  readonly id: string;
+  readonly path: readonly string[];
+  readonly message: string;
+  readonly scope?: string | undefined;
+  readonly reference: RelationReference;
+}

@@ -832,10 +832,11 @@ workspace-specific logic.
 
 Status: started. Core artifact runtimes now expose graph-derived schema-algebra
 views for `entityIndex`, `definitionLocations`, `references`, and
-`referenceDiagnostics` in addition to the existing `relationGraph` and
-`relationDiagnostics` views. These views are available on project refs and
-schema-backed file refs, giving agents and UIs a richer artifact-native
-inspection surface without reaching through `Workspace.Struct` directly.
+`referenceDiagnostics` in addition to `patchSuggestions` and the existing
+`relationGraph` and `relationDiagnostics` views. These views are available on
+project refs and schema-backed file refs, giving agents and UIs a richer
+artifact-native inspection surface without reaching through `Workspace.Struct`
+directly.
 `@schema-ide/schema-algebra` owns the graph-derived helper functions, keeping
 core responsible for view exposure rather than relation semantics.
 
@@ -866,8 +867,11 @@ YAML config are now the route source of truth for the packaged Onboarded sample.
 `OnboardedAccountWorkspaceSchema` is derived from that artifact project through
 the compatibility projection, and the existing cross-file validations remain
 attached while schema-algebra relation views continue to be exposed as artifact
-views. The remaining work is to remove UI/CLI naming that still says
-"workspace" and to move Onboarded cross-file relation/index behavior fully into
+views. Onboarded artifact runtimes now derive relation views from a structural
+artifact-project decode, so relation diagnostics and patch suggestions remain
+available even when compatibility workspace validation reports cross-file
+errors. The remaining work is to remove UI/CLI naming that still says
+"workspace" and to finish moving bespoke Onboarded validation behavior into
 artifact-native schema-algebra views.
 
 ### Phase 6: Update React SchemaIde API
